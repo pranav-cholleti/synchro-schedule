@@ -98,6 +98,31 @@ const mockActionItems: ActionItem[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: '3',
+    meetingId: '2',
+    taskName: 'Create brand style guide',
+    assignees: ['3'],
+    deadline: new Date(Date.now() + 432000000).toISOString(), // 5 days from now
+    priority: 3,
+    progress: 'Not Started',
+    createdBy: '1',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: '4',
+    meetingId: '2',
+    taskName: 'Implement new header component',
+    assignees: ['2'],
+    deadline: new Date(Date.now() + 345600000).toISOString(), // 4 days from now
+    priority: 2,
+    progress: 'Completed',
+    createdBy: '1',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+  },
 ];
 
 // Initialize localStorage with mock data if not already present
@@ -201,12 +226,12 @@ export const api = {
         hostId: userId,
         organisation,
         attendees: [
-          { userId, role: 'host', name: userName, email: userEmail },
+          { userId, role: 'host' as const, name: userName, email: userEmail },
           ...meetingData.attendees.map(attendeeId => {
             const user = getUsers().find(u => u.id === attendeeId);
             return { 
               userId: attendeeId, 
-              role: 'attendee',
+              role: 'attendee' as const,
               name: user?.name || 'Unknown',
               email: user?.email || 'unknown@example.com'
             };
@@ -267,6 +292,53 @@ export const api = {
       
       return updatedMeeting;
     },
+
+    getMeetingStats: async (meetingId: string): Promise<any> => {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const actionItems = getActionItems().filter(item => item.meetingId === meetingId);
+      
+      const tasksByStatus = {
+        'Not Started': actionItems.filter(item => item.progress === 'Not Started').length,
+        'In Progress': actionItems.filter(item => item.progress === 'In Progress').length,
+        'Completed': actionItems.filter(item => item.progress === 'Completed').length,
+        'Blocked': actionItems.filter(item => item.progress === 'Blocked').length,
+      };
+      
+      const priorityDistribution = actionItems.reduce((acc, item) => {
+        const priorityGroup = item.priority <= 3 ? 'High' : item.priority <= 6 ? 'Medium' : 'Low';
+        acc[priorityGroup] = (acc[priorityGroup] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      // Get unique assignees
+      const uniqueAssignees = [...new Set(actionItems.flatMap(item => item.assignees))];
+      const assigneeStats = uniqueAssignees.map(assigneeId => {
+        const user = getUsers().find(u => u.id === assigneeId);
+        const tasksForAssignee = actionItems.filter(item => item.assignees.includes(assigneeId));
+        
+        return {
+          assignee: user?.name || 'Unknown',
+          totalTasks: tasksForAssignee.length,
+          completedTasks: tasksForAssignee.filter(t => t.progress === 'Completed').length,
+          inProgressTasks: tasksForAssignee.filter(t => t.progress === 'In Progress').length,
+          notStartedTasks: tasksForAssignee.filter(t => t.progress === 'Not Started').length,
+          blockedTasks: tasksForAssignee.filter(t => t.progress === 'Blocked').length,
+        };
+      });
+      
+      // Simple AI summary (mocked)
+      const aiSummary = `Meeting has ${actionItems.length} total tasks: ${tasksByStatus['Completed']} completed, ${tasksByStatus['In Progress']} in progress, ${tasksByStatus['Not Started']} not started, and ${tasksByStatus['Blocked']} blocked. There are ${priorityDistribution['High'] || 0} high-priority tasks requiring immediate attention.`;
+      
+      return {
+        tasksByStatus,
+        priorityDistribution,
+        assigneeStats,
+        aiSummary,
+        totalTasks: actionItems.length,
+      };
+    }
   },
   
   // Users API
@@ -296,6 +368,54 @@ export const api = {
       
       const actionItems = getActionItems();
       return actionItems.filter(item => item.assignees.includes(userId));
+    },
+
+    create: async (actionItemData: Omit<ActionItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<ActionItem> => {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const actionItems = getActionItems();
+      const newActionItem: ActionItem = {
+        ...actionItemData,
+        id: (actionItems.length + 1).toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      saveActionItems([...actionItems, newActionItem]);
+      
+      return newActionItem;
+    },
+    
+    update: async (actionItemId: string, updatedData: Partial<ActionItem>): Promise<ActionItem> => {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const actionItems = getActionItems();
+      const itemIndex = actionItems.findIndex(item => item.id === actionItemId);
+      
+      if (itemIndex === -1) {
+        throw new Error('Action item not found');
+      }
+      
+      // If updating progress to Completed, add completedAt date
+      const completedAt = updatedData.progress === 'Completed' 
+        ? new Date().toISOString() 
+        : updatedData.progress !== 'Completed' 
+          ? undefined 
+          : actionItems[itemIndex].completedAt;
+      
+      const updatedItem: ActionItem = {
+        ...actionItems[itemIndex],
+        ...updatedData,
+        completedAt,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      actionItems[itemIndex] = updatedItem;
+      saveActionItems(actionItems);
+      
+      return updatedItem;
     },
   },
 };

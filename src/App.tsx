@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import CreateMeeting from "./pages/CreateMeeting";
 import Meetings from "./pages/Meetings";
 import MeetingDetail from "./pages/MeetingDetail";
+import MeetingDashboard from "./pages/MeetingDashboard";
 import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/meetings/create" element={<CreateMeeting />} />
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/meetings/:id" element={<MeetingDetail />} />
+              <Route path="/meetings/:id/dashboard" element={<MeetingDashboard />} />
               <Route path="/tasks" element={<Tasks />} />
             </Route>
             

@@ -58,9 +58,21 @@ const Register = () => {
     setLoading(true);
     try {
       // Exclude confirmPassword from the API call
-      const { confirmPassword, ...userData } = values;
+      const { confirmPassword, password, ...userData } = values;
       
-      const user = await api.auth.register(userData);
+      // Ensure all required fields are present and non-optional for the API call
+      const userDataForApi = {
+        ...userData,
+        name: userData.name,        // Ensure non-optional
+        age: userData.age,          // Ensure non-optional
+        organisation: userData.organisation, // Ensure non-optional
+        position: userData.position,   // Ensure non-optional
+        email: userData.email,      // Ensure non-optional
+        mobile: userData.mobile,    // This can remain optional
+        password: password,         // Add password back
+      };
+      
+      const user = await api.auth.register(userDataForApi);
       login(user);
       toast({
         title: "Registration successful",

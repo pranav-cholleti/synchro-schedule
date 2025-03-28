@@ -399,11 +399,12 @@ export const api = {
       }
       
       // If updating progress to Completed, add completedAt date
-      const completedAt = updatedData.progress === 'Completed' 
-        ? new Date().toISOString() 
-        : updatedData.progress !== 'Completed' 
-          ? undefined 
-          : actionItems[itemIndex].completedAt;
+      let completedAt = actionItems[itemIndex].completedAt;
+      if (updatedData.progress === 'Completed' && actionItems[itemIndex].progress !== 'Completed') {
+        completedAt = new Date().toISOString();
+      } else if (updatedData.progress && updatedData.progress !== 'Completed') {
+        completedAt = undefined;
+      }
       
       const updatedItem: ActionItem = {
         ...actionItems[itemIndex],
@@ -416,6 +417,148 @@ export const api = {
       saveActionItems(actionItems);
       
       return updatedItem;
+    },
+  },
+  
+  // AI service API - these would call the Python backend in a real implementation
+  ai: {
+    extractTextFromFile: async (file: File): Promise<string> => {
+      // In a real implementation, this would upload the file to the backend
+      // and process it with PyPDF2/python-docx
+      // For now, we'll simulate text extraction
+      
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Longer delay to simulate processing
+      
+      return `# Meeting Minutes\n\n## Attendees\n- John Doe (Host)\n- Jane Smith\n- Bob Johnson\n\n## Agenda\n1. Project status update\n2. Task assignments\n3. Timeline review\n\n## Discussion\nJohn presented the current project status. We're on track for the Q3 launch but need to address the UI concerns raised by the QA team. Jane suggested implementing a new component library to improve consistency.\n\nBob mentioned the need for updated wireframes for the dashboard before next sprint. He will send examples of what he's looking for by Friday.\n\nTeam agreed that we need to fix the login page responsiveness issues before the next release. Jane will take ownership of this task.\n\n## Action Items\n- Bob to update user dashboard wireframes by next Wednesday\n- Jane to fix login page responsiveness issues by Friday\n- John to schedule a design review meeting next week\n- Team to review the brand style guide by end of month`;
+    },
+    
+    formatMinutes: async (rawText: string): Promise<string> => {
+      // In a real implementation, this would call the Gemini API
+      // For now, just return the text with minimal formatting
+      
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Simple formatting - in real implementation, Gemini would do much better
+      return rawText.replace(/##/g, '### ').replace(/\n\n/g, '\n\n');
+    },
+    
+    extractActionItems: async (minutesText: string): Promise<{ suggestions: ActionItemSuggestion[] }> => {
+      // In a real implementation, this would call the Gemini API
+      // For now, return predefined suggestions
+      
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      return {
+        suggestions: [
+          {
+            taskName: 'Update user dashboard wireframes',
+            suggestedAssignees: ['Bob'],
+            deadline: new Date(Date.now() + 604800000).toISOString(), // 1 week from now
+            priority: 2,
+            context: 'Bob mentioned the need for updated wireframes for the dashboard before next sprint.',
+          },
+          {
+            taskName: 'Fix login page responsiveness issues',
+            suggestedAssignees: ['Jane'],
+            deadline: new Date(Date.now() + 259200000).toISOString(), // 3 days from now
+            priority: 1,
+            context: 'Team agreed that we need to fix the login page responsiveness issues before the next release. Jane will take ownership of this task.',
+          },
+          {
+            taskName: 'Schedule design review meeting',
+            suggestedAssignees: ['John'],
+            deadline: new Date(Date.now() + 432000000).toISOString(), // 5 days from now
+            priority: 3,
+            context: 'John to schedule a design review meeting next week',
+          },
+          {
+            taskName: 'Review brand style guide',
+            suggestedAssignees: ['Team'],
+            deadline: new Date(Date.now() + 1728000000).toISOString(), // End of month
+            priority: 5,
+            context: 'Team to review the brand style guide by end of month',
+          },
+        ]
+      };
+    },
+    
+    summarizeMeeting: async (minutesText: string): Promise<string> => {
+      // In a real implementation, this would call the Gemini API
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return 'The team discussed project status for Q3 launch, with UI concerns raised by QA. Jane proposed a new component library for consistency. Bob requested updated dashboard wireframes. The team agreed to prioritize fixing login page responsiveness issues. Key action items were assigned with specific deadlines.';
+    },
+    
+    analyzeProgress: async (tasks: any[]): Promise<string> => {
+      // In a real implementation, this would call the Gemini API
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const completedCount = tasks.filter(t => t.status === 'Completed').length;
+      const percentage = Math.round((completedCount / tasks.length) * 100);
+      
+      return `Your team has completed ${completedCount} out of ${tasks.length} tasks (${percentage}%). There are ${tasks.filter(t => t.status === 'Blocked').length} blocked tasks that need attention. The highest priority incomplete task is "${tasks.find(t => t.status !== 'Completed')?.taskName || 'None'}".`;
+    },
+  },
+  
+  // File handling API
+  files: {
+    uploadMeetingMinutes: async (meetingId: string, file: File): Promise<string> => {
+      // In a real implementation, this would upload the file to a storage service
+      // For now, simulate uploading and return a mock URL
+      
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      // Store file metadata in localStorage for demonstration
+      const meetings = getMeetings();
+      const meetingIndex = meetings.findIndex(m => m.id === meetingId);
+      
+      if (meetingIndex === -1) {
+        throw new Error('Meeting not found');
+      }
+      
+      const mockFileUrl = `https://storage.example.com/meetings/${meetingId}/${file.name}`;
+      
+      // In a real app, we'd update the meeting record in the database
+      // For now, we'll just return the mock URL
+      
+      return mockFileUrl;
+    },
+    
+    generateMeetingPDF: async (meetingId: string, content: string): Promise<string> => {
+      // In a real implementation, this would generate a PDF with the content
+      // For now, simulate PDF generation and return a mock URL
+      
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const mockPdfUrl = `https://storage.example.com/meetings/${meetingId}/minutes.pdf`;
+      
+      return mockPdfUrl;
+    },
+  },
+  
+  // Notification API (would be server-side in a real app)
+  notifications: {
+    sendMeetingReminder: async (meetingId: string): Promise<boolean> => {
+      // In a real implementation, this would send emails via a service like SendGrid
+      console.log(`[MOCK] Sending meeting reminder for meeting ${meetingId}`);
+      return true;
+    },
+    
+    sendTaskReminder: async (taskId: string): Promise<boolean> => {
+      console.log(`[MOCK] Sending task reminder for task ${taskId}`);
+      return true;
+    },
+    
+    sendMeetingMinutes: async (meetingId: string, attendeeEmails: string[], pdfUrl: string): Promise<boolean> => {
+      console.log(`[MOCK] Sending meeting minutes for meeting ${meetingId} to ${attendeeEmails.join(', ')}`);
+      return true;
+    },
+    
+    sendProgressReport: async (hostEmail: string, meetingId: string, reportText: string): Promise<boolean> => {
+      console.log(`[MOCK] Sending progress report for meeting ${meetingId} to ${hostEmail}`);
+      return true;
     },
   },
 };

@@ -56,3 +56,79 @@ export type ActionItem = {
   updatedAt: string;
   completedAt?: string;
 };
+
+// Backend configuration types
+export type BackendConfig = {
+  apiUrl: string;
+  aiServiceUrl: string;
+  emailServiceEnabled: boolean;
+};
+
+// AI service types
+export type TextExtractionRequest = {
+  filePath: string;
+  fileType: 'pdf' | 'docx' | 'txt';
+};
+
+export type TextExtractionResponse = {
+  extractedText: string;
+  success: boolean;
+  error?: string;
+};
+
+export type FormattedMinutesRequest = {
+  rawText: string;
+};
+
+export type FormattedMinutesResponse = {
+  formattedText: string;
+  success: boolean;
+  error?: string;
+};
+
+export type ActionItemExtractionRequest = {
+  minutesText: string;
+};
+
+export type ActionItemSuggestion = {
+  taskName: string;
+  suggestedAssignees: string[];
+  deadline?: string;
+  priority: number;
+  context: string;
+};
+
+export type ActionItemExtractionResponse = {
+  suggestions: ActionItemSuggestion[];
+  success: boolean;
+  error?: string;
+};
+
+export type MeetingSummaryRequest = {
+  minutesText: string;
+};
+
+export type MeetingSummaryResponse = {
+  summary: string;
+  success: boolean;
+  error?: string;
+};
+
+export type ProgressAnalysisRequest = {
+  meetingId: string;
+  tasks: Array<{
+    id: string;
+    taskName: string;
+    status: string;
+    deadline: string;
+    assigneeName: string;
+  }>;
+};
+
+export type ProgressAnalysisResponse = {
+  analysisReport: string;
+  completionPercentage: number;
+  riskItems: string[];
+  success: boolean;
+  error?: string;
+};

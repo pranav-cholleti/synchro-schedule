@@ -6,7 +6,7 @@ import { api } from '@/services/api';
 import { Meeting, ActionItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart4, Calendar, Clock, Users, MapPin, Link as LinkIcon, MessageSquare } from 'lucide-react';
+import { BarChart4, Calendar, Clock, Users, MapPin, Link as LinkIcon, MessageSquare, Edit, ListTodo } from 'lucide-react';
 
 const MeetingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -65,7 +65,20 @@ const MeetingDetail = () => {
             </Button>
           </Link>
           {isHost && (
-            <Button className="bg-synchro-600 hover:bg-synchro-700">Edit Meeting</Button>
+            <>
+              <Link to={`/meetings/${id}/edit`}>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Edit className="h-4 w-4" />
+                  <span>Edit Meeting</span>
+                </Button>
+              </Link>
+              <Link to={`/meetings/${id}/action-items`}>
+                <Button className="bg-synchro-600 hover:bg-synchro-700 flex items-center gap-2">
+                  <ListTodo className="h-4 w-4" />
+                  <span>{actionItems.length === 0 ? 'Create Action Items' : 'Manage Action Items'}</span>
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -198,9 +211,11 @@ const MeetingDetail = () => {
           
           {isHost && (
             <div className="mt-6 flex justify-center">
-              <Button className="bg-synchro-600 hover:bg-synchro-700">
-                {actionItems.length === 0 ? 'Create Action Items' : 'Manage Action Items'}
-              </Button>
+              <Link to={`/meetings/${id}/action-items`}>
+                <Button className="bg-synchro-600 hover:bg-synchro-700">
+                  {actionItems.length === 0 ? 'Create Action Items' : 'Manage Action Items'}
+                </Button>
+              </Link>
             </div>
           )}
         </CardContent>

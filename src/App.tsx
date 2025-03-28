@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +17,8 @@ import MeetingDetail from "./pages/MeetingDetail";
 import MeetingDashboard from "./pages/MeetingDashboard";
 import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
+import EditMeeting from "./pages/EditMeeting";
+import ManageActionItems from "./pages/ManageActionItems";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,8 @@ const App = () => (
               <Route path="/meetings/:id" element={<MeetingDetail />} />
               <Route path="/meetings/:id/dashboard" element={<MeetingDashboard />} />
               <Route path="/tasks" element={<Tasks />} />
+              <Route path="/meetings/:id/edit" element={<ProtectedRoute><EditMeeting /></ProtectedRoute>} />
+              <Route path="/meetings/:id/action-items" element={<ProtectedRoute><ManageActionItems /></ProtectedRoute>} />
             </Route>
             
             {/* Catch-all route */}

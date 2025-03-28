@@ -1,5 +1,4 @@
-
-import { AuthUser, Meeting, User, MeetingFormData, ActionItem } from '@/types';
+import { AuthUser, Meeting, User, MeetingFormData, ActionItem, ActionItemSuggestion } from '@/types';
 
 // For demo purposes, we'll use localStorage to store data
 // In a real app, these would be API calls to a backend

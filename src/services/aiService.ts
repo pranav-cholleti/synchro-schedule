@@ -1,4 +1,3 @@
-
 import { 
   TextExtractionRequest, 
   TextExtractionResponse,

@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/services/api';
-import { User } from '@/types';
+import { User, MeetingFormData } from '@/types';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -112,10 +112,14 @@ const CreateMeeting = () => {
     
     setLoading(true);
     try {
-      // Format the datetime properly
-      const formattedValues = {
-        ...values,
+      // Format the datetime properly and ensure all required fields are present
+      const formattedValues: MeetingFormData = {
+        name: values.name, // This is now explicitly non-optional
         dateTime: values.dateTime.toISOString(),
+        attendees: values.attendees,
+        isOnline: values.isOnline,
+        meetingLink: values.meetingLink,
+        additionalComments: values.additionalComments,
       };
       
       const meeting = await api.meetings.create(

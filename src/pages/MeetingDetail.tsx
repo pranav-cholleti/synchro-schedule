@@ -211,15 +211,24 @@ const MeetingDetail = () => {
         {/* Minutes Tab */}
         <TabsContent value="minutes" className="mt-4">
           <MinutesEditor 
-            content={minutes}
-            onSave={handleSaveMinutes}
-            isSaving={savingMinutes}
+            meetingId={id || ''}
+            formattedText={minutes}
+            isHost={meeting.hostId === user?.id}
+            onSaveMinutes={handleSaveMinutes}
+            onUploadMinutes={async () => {}}
+            onExtractActionItems={async () => {}}
+            onGeneratePdf={handleDownloadPDF}
           />
         </TabsContent>
         
         {/* Action Items Tab */}
         <TabsContent value="action-items" className="mt-4">
-          <ActionItemsList items={actionItems} setItems={setActionItems} />
+          <ActionItemsList 
+            actionItems={actionItems} 
+            users={attendees}
+            isHost={meeting.hostId === user?.id}
+            onUpdateStatus={async () => {}}
+          />
         </TabsContent>
         
         {/* Files Tab */}
@@ -231,7 +240,11 @@ const MeetingDetail = () => {
       </Tabs>
       
       {/* Meeting Actions */}
-      <MeetingActions meetingId={id} isPast={isPastMeeting} onDownloadPDF={handleDownloadPDF} />
+      <MeetingActions 
+        meetingId={id || ''} 
+        isHost={meeting.hostId === user?.id}
+        hasActionItems={actionItems.length > 0}
+      />
     </div>
   );
 };

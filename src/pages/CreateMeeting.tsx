@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,8 +16,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Clock, CheckSquare2 } from 'lucide-react';
 
-// Assuming AttendeeSelector is a correctly implemented component
-import AttendeeSelector from '@/components/AttendeeSelector';
+// Import AttendeeSelector as a named export, not default
+import { AttendeeSelector } from '@/components/AttendeeSelector';
 
 const CreateMeeting = () => {
   const { user } = useAuth();
@@ -42,9 +43,9 @@ const CreateMeeting = () => {
       
       try {
         const response = await api.users.getByOrganisation(user.organisation);
-        if (response.success && response.data) {
+        if (Array.isArray(response)) {
           // Filter out the current user
-          const filteredUsers = response.data.filter(u => u.id !== user.id);
+          const filteredUsers = response.filter(u => u.id !== user.id);
           setUsers(filteredUsers);
         }
       } catch (error) {
@@ -133,21 +134,13 @@ const CreateMeeting = () => {
       // Create meeting
       const response = await api.meetings.create(meetingData);
       
-      if (response.success && response.data) {
-        toast({
-          title: 'Success',
-          description: 'Meeting created successfully',
-        });
-        
-        // Redirect to the meeting details page
-        navigate(`/meetings/${response.data._id}`);
-      } else {
-        toast({
-          title: 'Error',
-          description: response.message || 'Failed to create meeting',
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'Success',
+        description: 'Meeting created successfully',
+      });
+      
+      // Redirect to the meeting details page
+      navigate(`/meetings/${response._id || response.id}`);
     } catch (error) {
       console.error('Error creating meeting:', error);
       toast({
@@ -158,6 +151,11 @@ const CreateMeeting = () => {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Update the handler for selectedAttendees
+  const handleSelectedAttendeesChange = (selectedUserIds: string[]) => {
+    setSelectedAttendees(selectedUserIds);
   };
   
   return (
@@ -296,8 +294,9 @@ const CreateMeeting = () => {
               <Label>Attendees</Label>
               <AttendeeSelector 
                 users={users}
-                selectedAttendees={selectedAttendees}
-                setSelectedAttendees={setSelectedAttendees}
+                selectedUserIds={selectedAttendees}
+                onChange={handleSelectedAttendeesChange}
+                excludeUserId={user?.id}
               />
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Select users from your organisation to invite

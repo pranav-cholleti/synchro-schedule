@@ -1,300 +1,317 @@
+
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/services/api';
 import { Meeting } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { 
-  CalendarPlus, 
-  Calendar, 
-  Search, 
-  ArrowUpDown, 
-  Users, 
-  VideoIcon, 
-  MapPin,
-  Eye,
-  Pencil,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Clock, Globe, Users, CalendarDays, MoreVertical, Trash, Edit, Download } from 'lucide-react';
+import { format } from 'date-fns';
 
 const Meetings = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('dateTime');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [filter, setFilter] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  const fetchMeetings = async () => {
-    setLoading(true);
-    try {
-      // Note: Removed userId parameter
-      const response = await api.meetings.getAll();
-      if (response.success && response.data) {
-        setMeetings(response.data.meetings || []);
-        setTotalPages(response.data.totalPages || 1);
-        setCurrentPage(response.data.currentPage || 1);
-      } else {
-        setMeetings([]);
-      }
-    } catch (error) {
-      console.error('Error fetching meetings:', error);
-      setMeetings([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const [activeTab, setActiveTab] = useState("upcoming");
+  const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
   useEffect(() => {
-    if (user) {
-      fetchMeetings();
-    }
-  }, [user, searchTerm, sortBy, sortOrder, filter, currentPage]);
-
-  // Function to handle search
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page when searching
-  };
-
-  // Function to handle sort
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      // Toggle order if same field
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // New field, default to desc for date, asc for others
-      setSortBy(field);
-      setSortOrder(field === 'dateTime' ? 'desc' : 'asc');
-    }
-    setCurrentPage(1); // Reset to first page when sorting
-  };
-
-  // Function to handle filter
-  const handleFilter = (value: string) => {
-    setFilter(value);
-    setCurrentPage(1); // Reset to first page when filtering
-  };
-
-  // Pagination handlers
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const goToPrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Meetings</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">View and manage all meetings you're involved in</p>
-        </div>
-        <Link to="/meetings/create">
-          <Button className="bg-synchro-600 hover:bg-synchro-700">
-            <CalendarPlus className="mr-2 h-4 w-4" /> Create New Meeting
-          </Button>
-        </Link>
-      </div>
+    const fetchMeetings = async () => {
+      if (!user) {
+        console.error('No user found');
+        setLoading(false);
+        return;
+      }
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Meetings List</CardTitle>
-          <CardDescription>All meetings where you're a host or attendee</CardDescription>
+      try {
+        const response = await api.meetings.getAll();
+        if (Array.isArray(response)) {
+          setMeetings(response);
+          console.log('Meetings fetched:', response);
+        } else {
+          console.error('Unexpected API response structure:', response);
+        }
+      } catch (error) {
+        console.error('Error fetching meetings:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load meetings',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMeetings();
+  }, [user]);
+  
+  // Filter meetings
+  const upcomingMeetings = Array.isArray(meetings) ? meetings.filter(meeting => 
+    new Date(meeting.dateTime) >= new Date()
+  ).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()) : [];
+  
+  const pastMeetings = Array.isArray(meetings) ? meetings.filter(meeting => 
+    new Date(meeting.dateTime) < new Date()
+  ).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()) : [];
+  
+  // Handle deletion
+  const confirmDelete = (meeting: Meeting) => {
+    setMeetingToDelete(meeting);
+    setDeleteDialogOpen(true);
+  };
+  
+  const handleDelete = async () => {
+    if (!meetingToDelete) return;
+    
+    setDeleteLoading(true);
+    
+    try {
+      await api.meetings.delete(meetingToDelete.id);
+      
+      // Remove the deleted meeting from state
+      setMeetings(prevMeetings => prevMeetings.filter(m => m.id !== meetingToDelete.id));
+      
+      toast({
+        title: 'Success',
+        description: 'Meeting deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting meeting:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete meeting',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteLoading(false);
+      setDeleteDialogOpen(false);
+      setMeetingToDelete(null);
+    }
+  };
+  
+  // Download PDF
+  const handleDownloadPDF = async (meetingId: string) => {
+    try {
+      await api.meetings.generateMeetingPDF(meetingId);
+      
+      toast({
+        title: 'Success',
+        description: 'PDF downloaded successfully',
+      });
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to download PDF',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Utility function to display formatted meeting date
+  const formatMeetingDate = (dateTimeString: string): string => {
+    const date = new Date(dateTimeString);
+    return format(date, 'PPP');
+  };
+  
+  // Utility function to display formatted meeting time
+  const formatMeetingTime = (dateTimeString: string): string => {
+    const date = new Date(dateTimeString);
+    return format(date, 'p');
+  };
+  
+  // Render a meeting card
+  const renderMeetingCard = (meeting: Meeting) => {
+    const isHost = meeting.host === user?.id;
+    
+    return (
+      <Card key={meeting.id} className="overflow-hidden">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <Link to={`/meetings/${meeting.id}`} className="hover:underline">
+              <CardTitle className="text-xl hover:text-synchro-600 transition-colors">
+                {meeting.name}
+              </CardTitle>
+            </Link>
+            
+            {/* Menu for meeting actions (only for host) */}
+            {isHost && (
+              <div className="relative group">
+                <button className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                  <MoreVertical className="h-5 w-5 text-gray-500" />
+                </button>
+                
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 hidden group-hover:block">
+                  <ul className="py-1">
+                    <li>
+                      <Link 
+                        to={`/meetings/${meeting.id}/edit`}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Meeting
+                      </Link>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => confirmDelete(meeting)}
+                        className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Trash className="h-4 w-4 mr-2" />
+                        Delete Meeting
+                      </button>
+                    </li>
+                    
+                    {new Date(meeting.dateTime) < new Date() && (
+                      <li>
+                        <button 
+                          onClick={() => handleDownloadPDF(meeting.id)}
+                          className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download PDF
+                        </button>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
         </CardHeader>
         
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
-              <Input
-                placeholder="Search meetings..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={handleSearch}
-              />
+        <CardContent className="pb-2">
+          <div className="space-y-3">
+            {/* Meeting details */}
+            <div className="flex items-center text-gray-600 dark:text-gray-400">
+              <CalendarDays className="h-4 w-4 mr-2" />
+              <span>{formatMeetingDate(meeting.dateTime)}</span>
             </div>
             
-            <Select value={filter} onValueChange={handleFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Meetings</SelectItem>
-                <SelectItem value="host">Meetings I Host</SelectItem>
-                <SelectItem value="attendee">Meetings I Attend</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {loading ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-synchro-600"></div>
+            <div className="flex items-center text-gray-600 dark:text-gray-400">
+              <Clock className="h-4 w-4 mr-2" />
+              <span>{formatMeetingTime(meeting.dateTime)}</span>
             </div>
-          ) : meetings.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 mx-auto text-gray-400" />
-              <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">No meetings found</h3>
-              <p className="mt-1 text-gray-500 dark:text-gray-400">
-                {searchTerm || filter 
-                  ? "Try adjusting your search or filter" 
-                  : "You don't have any meetings scheduled yet"}
-              </p>
-              <div className="mt-6">
-                <Link to="/meetings/create">
-                  <Button className="bg-synchro-600 hover:bg-synchro-700">
-                    <CalendarPlus className="mr-2 h-4 w-4" /> Schedule a Meeting
-                  </Button>
-                </Link>
-              </div>
+            
+            <div className="flex items-center text-gray-600 dark:text-gray-400">
+              <Globe className="h-4 w-4 mr-2" />
+              <span>{meeting.isOnline ? 'Online' : 'In Person'}</span>
+            </div>
+            
+            {/* <div className="flex items-center text-gray-600 dark:text-gray-400">
+              <Users className="h-4 w-4 mr-2" />
+              <span>{meeting.attendees.length} attendees</span>
+            </div> */}
+          </div>
+        </CardContent>
+        
+        <CardFooter className="pt-2">
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => navigate(`/meetings/${meeting.id}`)}
+          >
+            View Details
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  };
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Meetings</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your meetings and appointments</p>
+        </div>
+        
+        <Button 
+          onClick={() => navigate('/meetings/create')}
+          className="bg-synchro-600 hover:bg-synchro-700"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create Meeting
+        </Button>
+      </div>
+      
+      <Tabs defaultValue="upcoming" onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-2 w-[400px]">
+          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+          <TabsTrigger value="past">Past</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="upcoming" className="mt-6">
+          {loading ? (
+            <div className="text-center py-10">
+              <div className="inline-block animate-spin h-8 w-8 border-4 border-synchro-600 border-opacity-50 border-t-transparent rounded-full"></div>
+              <p className="mt-2 text-gray-500 dark:text-gray-400">Loading meetings...</p>
+            </div>
+          ) : upcomingMeetings.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {upcomingMeetings.map(meeting => renderMeetingCard(meeting))}
             </div>
           ) : (
-            <div className="border rounded-md overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                      onClick={() => handleSort('name')}
-                    >
-                      <div className="flex items-center">
-                        Meeting Name
-                        {sortBy === 'name' && (
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                      onClick={() => handleSort('dateTime')}
-                    >
-                      <div className="flex items-center">
-                        Date & Time
-                        {sortBy === 'dateTime' && (
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead>Your Role</TableHead>
-                    <TableHead>Format</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {meetings.map((meeting) => {
-                    const meetingDate = new Date(meeting.dateTime);
-                    return (
-                      <TableRow key={meeting.id}>
-                        <TableCell className="font-medium">{meeting.name}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                            <span>
-                              {meetingDate.toLocaleDateString()}, {' '}
-                              {meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            meeting.userRole === 'host' 
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                          }`}>
-                            <Users className="mr-1 h-3 w-3" />
-                            {meeting.userRole === 'host' ? 'Host' : 'Attendee'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {meeting.isOnline ? (
-                            <span className="inline-flex items-center text-synchro-600 dark:text-synchro-400">
-                              <VideoIcon className="mr-1 h-4 w-4" /> Online
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center text-gray-600 dark:text-gray-400">
-                              <MapPin className="mr-1 h-4 w-4" /> In Person
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Link to={`/meetings/${meeting.id}`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-4 w-4 mr-1" /> View
-                              </Button>
-                            </Link>
-                            {meeting.userRole === 'host' && (
-                              <Link to={`/meetings/${meeting.id}/edit`}>
-                                <Button variant="outline" size="sm">
-                                  <Pencil className="h-4 w-4 mr-1" /> Edit
-                                </Button>
-                              </Link>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            <div className="text-center py-10 border rounded-lg bg-gray-50 dark:bg-gray-900">
+              <p className="text-lg text-gray-600 dark:text-gray-400">No upcoming meetings</p>
+              <Button 
+                onClick={() => navigate('/meetings/create')}
+                className="mt-4 bg-synchro-600 hover:bg-synchro-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Meeting
+              </Button>
             </div>
           )}
-          
-          {/* Pagination */}
-          {!loading && meetings.length > 0 && (
-            <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Page {currentPage} of {totalPages}
-              </div>
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={goToPrevPage}
-                  disabled={currentPage <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={goToNextPage}
-                  disabled={currentPage >= totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+        </TabsContent>
+        
+        <TabsContent value="past" className="mt-6">
+          {loading ? (
+            <div className="text-center py-10">
+              <div className="inline-block animate-spin h-8 w-8 border-4 border-synchro-600 border-opacity-50 border-t-transparent rounded-full"></div>
+              <p className="mt-2 text-gray-500 dark:text-gray-400">Loading meetings...</p>
+            </div>
+          ) : pastMeetings.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pastMeetings.map(meeting => renderMeetingCard(meeting))}
+            </div>
+          ) : (
+            <div className="text-center py-10 border rounded-lg bg-gray-50 dark:bg-gray-900">
+              <p className="text-lg text-gray-600 dark:text-gray-400">No past meetings</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Meeting</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this meeting? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading}>
+              {deleteLoading ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

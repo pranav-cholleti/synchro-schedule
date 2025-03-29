@@ -1,234 +1,309 @@
 
 import axios from 'axios';
-import { User, Meeting, ActionItem, BackendConfig } from '@/types';
 
-// Auth API
-const authApi = {
-  login: async (credentials: { email: string; password: string }) => {
-    const response = await axios.post('/api/auth/login', credentials);
-    return response.data;
-  },
-  
-  register: async (userData: Omit<User, "id" | "createdAt"> & { password: string }) => {
-    const response = await axios.post('/api/auth/register', userData);
-    return response.data;
-  }
-};
-
-// Users API
 const usersApi = {
   getAll: async () => {
-    const response = await axios.get<User[]>('/api/users');
-    return response.data;
+    try {
+      const response = await axios.get('/api/users');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
   },
-
-  getById: async (id: string) => {
-    const response = await axios.get<User>(`/api/users/${id}`);
-    return response.data;
+  getById: async (id) => {
+    try {
+      const response = await axios.get(`/api/users/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching user ${id}:`, error);
+      return null;
+    }
   },
-
-  getByOrganisation: async (organisation: string) => {
-    const response = await axios.get<User[]>(`/api/users?organisation=${organisation}`);
-    return response.data;
+  getByOrganisation: async (organisation) => {
+    try {
+      const response = await axios.get(`/api/users?organisation=${organisation}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching users for organisation ${organisation}:`, error);
+      return [];
+    }
   },
-
-  create: async (user: Omit<User, 'id' | 'createdAt'>) => {
-    const response = await axios.post<User>('/api/users', user);
-    return response.data;
+  create: async (user) => {
+    try {
+      const response = await axios.post('/api/users', user);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
   },
-
-  update: async (id: string, user: Partial<User>) => {
-    const response = await axios.put<User>(`/api/users/${id}`, user);
-    return response.data;
+  update: async (id, user) => {
+    try {
+      const response = await axios.put(`/api/users/${id}`, user);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating user ${id}:`, error);
+      throw error;
+    }
   },
-
-  delete: async (id: string) => {
-    const response = await axios.delete(`/api/users/${id}`);
-    return response.data;
+  delete: async (id) => {
+    try {
+      const response = await axios.delete(`/api/users/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting user ${id}:`, error);
+      throw error;
+    }
   }
 };
 
-// Meetings API
 const meetingsApi = {
   getAll: async () => {
-    const response = await axios.get<Meeting[]>('/api/meetings');
-    return response.data;
+    try {
+      const response = await axios.get('/api/meetings');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      return [];
+    }
   },
-  
-  getById: async (id: string) => {
-    const response = await axios.get<Meeting>(`/api/meetings/${id}`);
-    return response.data;
+  getById: async (id) => {
+    try {
+      const response = await axios.get(`/api/meetings/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching meeting ${id}:`, error);
+      return null;
+    }
   },
-  
-  create: async (meeting: Omit<Meeting, 'id' | 'hostId' | 'organisation' | 'attendees' | 'createdAt' | 'updatedAt'> & { attendees: string[] }) => {
-    const response = await axios.post<Meeting>('/api/meetings', meeting);
-    return response.data;
+  create: async (meeting) => {
+    try {
+      const response = await axios.post('/api/meetings', meeting);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating meeting:', error);
+      throw error;
+    }
   },
-  
-  update: async (id: string, meeting: Partial<Meeting> | { 
-    name?: string; 
-    dateTime?: string; 
-    attendees?: string[]; 
-    isOnline?: boolean; 
-    meetingLink?: string; 
-    additionalComments?: string; 
-  }) => {
-    const response = await axios.put<Meeting>(`/api/meetings/${id}`, meeting);
-    return response.data;
+  update: async (id, meeting) => {
+    try {
+      const response = await axios.put(`/api/meetings/${id}`, meeting);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating meeting ${id}:`, error);
+      throw error;
+    }
   },
-  
-  delete: async (id: string) => {
-    const response = await axios.delete(`/api/meetings/${id}`);
-    return response.data;
+  delete: async (id) => {
+    try {
+      const response = await axios.delete(`/api/meetings/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting meeting ${id}:`, error);
+      throw error;
+    }
   },
-
-  getActionItems: async (meetingId: string) => {
-    const response = await axios.get<ActionItem[]>(`/api/action-items?meetingId=${meetingId}`);
-    return response.data;
+  getActionItems: async (meetingId) => {
+    try {
+      const response = await axios.get(`/api/action-items?meetingId=${meetingId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching action items for meeting ${meetingId}:`, error);
+      return [];
+    }
   },
-  
-  // Add missing methods based on errors
-  getMeetingStats: async (meetingId: string) => {
-    const response = await axios.get(`/api/meetings/${meetingId}/dashboard`);
-    return response.data;
-  },
-  
-  uploadMinutes: async (meetingId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const response = await axios.post(
-      `/api/meetings/${meetingId}/minutes/upload`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    return response.data;
-  },
-  
-  updateMinutesText: async (meetingId: string, formattedMinutesText: string) => {
-    const response = await axios.put(`/api/meetings/${meetingId}/minutes`, { formattedMinutesText });
-    return response.data;
-  },
-  
-  generateMinutesPdf: async (meetingId: string) => {
-    const response = await axios.post(`/api/meetings/${meetingId}/minutes/generate-pdf`);
-    return response.data;
-  },
-  
-  addAttendee: async (meetingId: string, userId: string) => {
-    const response = await axios.post(`/api/meetings/${meetingId}/attendees`, { userId });
-    return response.data;
-  },
-  
-  promoteAttendee: async (meetingId: string, userId: string) => {
-    const response = await axios.put(`/api/meetings/${meetingId}/attendees/${userId}/promote`);
-    return response.data;
-  },
-  
-  removeAttendee: async (meetingId: string, userId: string) => {
-    const response = await axios.delete(`/api/meetings/${meetingId}/attendees/${userId}`);
-    return response.data;
+  generateMeetingPDF: async (meetingId) => {
+    try {
+      const response = await axios.get(`/api/meetings/${meetingId}/pdf`, {
+        responseType: 'blob'
+      });
+      
+      // Create a blob URL and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `meeting-${meetingId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      return true;
+    } catch (error) {
+      console.error(`Error generating PDF for meeting ${meetingId}:`, error);
+      throw error;
+    }
   }
 };
 
-// Action Items API
 const actionItemsApi = {
   getAll: async () => {
-    const response = await axios.get<ActionItem[]>('/api/action-items');
-    return response.data;
+    try {
+      const response = await axios.get('/api/action-items');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching action items:', error);
+      return [];
+    }
   },
-
-  getById: async (id: string) => {
-    const response = await axios.get<ActionItem>(`/api/action-items/${id}`);
-    return response.data;
+  getById: async (id) => {
+    try {
+      const response = await axios.get(`/api/action-items/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching action item ${id}:`, error);
+      return null;
+    }
   },
-
-  create: async (actionItem: Omit<ActionItem, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const response = await axios.post<ActionItem>('/api/action-items', actionItem);
-    return response.data;
+  create: async (actionItem) => {
+    try {
+      const response = await axios.post('/api/action-items', actionItem);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating action item:', error);
+      throw error;
+    }
   },
-
-  update: async (id: string, actionItem: Partial<ActionItem>) => {
-    const response = await axios.put<ActionItem>(`/api/action-items/${id}`, actionItem);
-    return response.data;
+  update: async (id, actionItem) => {
+    try {
+      const response = await axios.put(`/api/action-items/${id}`, actionItem);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating action item ${id}:`, error);
+      throw error;
+    }
   },
-
-  delete: async (id: string) => {
-    const response = await axios.delete(`/api/action-items/${id}`);
-    return response.data;
-  },
-  
-  // Add missing methods based on errors
-  getByMeeting: async (meetingId: string) => {
-    const response = await axios.get<ActionItem[]>(`/api/meetings/${meetingId}/action-items`);
-    return response.data;
-  },
-  
-  batchUpdate: async (meetingId: string, actionItems: Array<Partial<ActionItem> & { id?: string }>) => {
-    const response = await axios.put(`/api/meetings/${meetingId}/action-items`, { actionItems });
-    return response.data;
-  },
-  
-  getAssignedToUser: async (userId: string) => {
-    const response = await axios.get<ActionItem[]>(`/api/tasks/assigned`);
-    return response.data;
-  },
-  
-  getScheduledByUser: async (userId: string) => {
-    const response = await axios.get<ActionItem[]>(`/api/tasks/scheduled`);
-    return response.data;
+  delete: async (id) => {
+    try {
+      const response = await axios.delete(`/api/action-items/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting action item ${id}:`, error);
+      throw error;
+    }
   }
 };
 
-// Config API
 const backendConfigApi = {
   get: async () => {
-    const response = await axios.get<BackendConfig>('/api/config');
-    return response.data;
-  },
-};
-
-// AI API
-const aiApi = {
-  extractActionItems: async (meetingId: string) => {
-    const response = await axios.post(`/api/meetings/${meetingId}/extract-actions`);
-    return response.data;
-  },
-  
-  generateSummary: async (meetingId: string) => {
-    const response = await axios.post(`/api/meetings/${meetingId}/generate-summary`);
-    return response.data;
+    try {
+      const response = await axios.get('/api/config');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching backend config:', error);
+      return null;
+    }
   }
 };
 
-// Files API
+const authApi = {
+  login: async (credentials) => {
+    try {
+      const response = await axios.post('/api/auth/login', credentials);
+      return response.data;
+    } catch (error) {
+      console.error('Error during login:', error);
+      throw error;
+    }
+  },
+  register: async (userData) => {
+    try {
+      const response = await axios.post('/api/auth/register', userData);
+      return response.data;
+    } catch (error) {
+      console.error('Error during registration:', error);
+      throw error;
+    }
+  },
+  forgotPassword: async (email) => {
+    try {
+      const response = await axios.post('/api/auth/forgot-password', { email });
+      return response.data;
+    } catch (error) {
+      console.error('Error during forgot password:', error);
+      throw error;
+    }
+  },
+  resetPassword: async (token, newPassword) => {
+    try {
+      const response = await axios.post('/api/auth/reset-password', { token, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Error during password reset:', error);
+      throw error;
+    }
+  }
+};
+
+const aiApi = {
+  generateSummary: async (meetingId) => {
+    try {
+      const response = await axios.post(`/api/ai/summarize`, { meetingId });
+      return response.data;
+    } catch (error) {
+      console.error('Error generating meeting summary:', error);
+      throw error;
+    }
+  },
+  generateActionItems: async (meetingId) => {
+    try {
+      const response = await axios.post(`/api/ai/action-items`, { meetingId });
+      return response.data;
+    } catch (error) {
+      console.error('Error generating action items:', error);
+      throw error;
+    }
+  }
+};
+
 const filesApi = {
-  uploadMeetingMinutes: async (meetingId: string, file: File) => {
-    return meetingsApi.uploadMinutes(meetingId, file);
+  upload: async (file, meetingId) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('meetingId', meetingId);
+      
+      const response = await axios.post('/api/files/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
   },
-  
-  downloadMinutesPdf: async (meetingId: string) => {
-    const response = await axios.get(`/api/meetings/${meetingId}/minutes/pdf`, { 
-      responseType: 'blob' 
-    });
-    return response.data;
+  getByMeeting: async (meetingId) => {
+    try {
+      const response = await axios.get(`/api/files?meetingId=${meetingId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching files for meeting ${meetingId}:`, error);
+      return [];
+    }
   },
-  
-  generateMeetingPDF: async (meetingId: string) => {
-    return meetingsApi.generateMinutesPdf(meetingId);
+  delete: async (fileId) => {
+    try {
+      const response = await axios.delete(`/api/files/${fileId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting file ${fileId}:`, error);
+      throw error;
+    }
   }
 };
 
 export const api = {
-  auth: authApi,
   users: usersApi,
   meetings: meetingsApi,
   actionItems: actionItemsApi,
   config: backendConfigApi,
+  auth: authApi,
   ai: aiApi,
   files: filesApi
 };

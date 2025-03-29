@@ -123,14 +123,18 @@ const EditMeeting = () => {
     
     setLoading(true);
     try {
+      // Extract only the attendee IDs from the meeting (excluding the host)
+      const attendeeIds = meeting.attendees
+        .filter(a => a.role === 'attendee')
+        .map(a => a.userId);
+      
       // Format the datetime properly
       const formattedValues = {
         name: values.name,
         dateTime: values.dateTime.toISOString(),
-        attendees: meeting.attendees
-          .filter(a => a.role === 'host')
-          .map(a => a.userId)
-          .concat(values.attendees),
+        // We only update the attendees list, not the full attendee objects
+        // The server will handle converting attendee IDs to proper objects
+        attendees: values.attendees,
         isOnline: values.isOnline,
         meetingLink: values.isOnline ? values.meetingLink : undefined,
         additionalComments: values.additionalComments,

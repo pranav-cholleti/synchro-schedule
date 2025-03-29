@@ -30,6 +30,15 @@ export type Meeting = {
   additionalComments?: string;
   createdAt: string;
   updatedAt: string;
+  extractedMinutesText?: string;
+  formattedMinutesText?: string;
+  uploadedMinutes?: {
+    originalFilename: string;
+    storagePath: string;
+    mimeType: string;
+    uploadedAt: string;
+  };
+  aiSummary?: string;
 };
 
 export type MeetingFormData = {

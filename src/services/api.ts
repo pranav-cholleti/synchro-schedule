@@ -417,6 +417,75 @@ export const api = {
       
       return updatedItem;
     },
+    
+    batchUpdate: async (meetingId: string, actionItems: Partial<ActionItem>[]): Promise<{ created: number, updated: number, deleted: number }> => {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const existingItems = getActionItems();
+      const meetingItems = existingItems.filter(item => item.meetingId === meetingId);
+      
+      // Track counts for response
+      let created = 0;
+      let updated = 0;
+      let deleted = 0;
+      
+      // Items to keep (will be updated with new values)
+      const updatedItems = existingItems.filter(item => item.meetingId !== meetingId);
+      
+      // Process each incoming item
+      for (const item of actionItems) {
+        if (item.id) {
+          // Update existing item
+          const existingItem = meetingItems.find(i => i.id === item.id);
+          if (existingItem) {
+            const updatedItem: ActionItem = {
+              ...existingItem,
+              ...item,
+              updatedAt: new Date().toISOString(),
+              // If status changed to Completed, add completedAt date
+              completedAt: item.progress === 'Completed' && existingItem.progress !== 'Completed' 
+                ? new Date().toISOString() 
+                : existingItem.completedAt
+            };
+            
+            // If status changed from Completed, remove completedAt
+            if (item.progress && item.progress !== 'Completed' && existingItem.progress === 'Completed') {
+              updatedItem.completedAt = undefined;
+            }
+            
+            updatedItems.push(updatedItem);
+            updated++;
+          }
+        } else if (item.taskName && item.assignees && item.deadline && item.priority) {
+          // Create new item
+          const newItem: ActionItem = {
+            id: (existingItems.length + created + 1).toString(),
+            meetingId,
+            taskName: item.taskName,
+            assignees: item.assignees as string[],
+            deadline: item.deadline as string,
+            priority: item.priority as number,
+            progress: item.progress || 'Not Started',
+            additionalComments: item.additionalComments,
+            createdBy: 'current-user', // This would come from the authenticated user
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+          updatedItems.push(newItem);
+          created++;
+        }
+      }
+      
+      // Count deleted items
+      deleted = meetingItems.length - updated;
+      
+      // Save all items
+      saveActionItems(updatedItems);
+      
+      return { created, updated, deleted };
+    },
   },
   
   // AI service API - these would call the Python backend in a real implementation

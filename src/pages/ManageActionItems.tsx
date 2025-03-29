@@ -4,7 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/services/api';
 import { Meeting, ActionItem, User, ActionItemSuggestion } from '@/types';
-import { aiService } from '@/services/aiService';
 import { format } from 'date-fns';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -14,11 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "lucide-react";
+import { Calendar, Loader2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import {
   Form,
@@ -62,6 +60,7 @@ const ManageActionItems = () => {
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [minutesText, setMinutesText] = useState('');
   const [suggestions, setSuggestions] = useState<ActionItemSuggestion[]>([]);
@@ -92,9 +91,14 @@ const ManageActionItems = () => {
         setMeeting(fetchedMeeting);
         setActionItems(fetchedTasks);
         setUsers(fetchedUsers);
+
+        // If meeting has formatted minutes, initialize the text field with it
+        if (fetchedMeeting.formattedMinutesText) {
+          setMinutesText(fetchedMeeting.formattedMinutesText);
+        }
         
         // Check if user is authorized (is the host)
-        if (fetchedMeeting.hostId !== user.id) {
+        if (!fetchedMeeting.attendees.some(a => a.userId === user.id && a.role === 'host')) {
           toast({
             title: "Access denied",
             description: "Only the meeting host can manage action items.",
@@ -120,7 +124,7 @@ const ManageActionItems = () => {
   const onSubmit = async (values: z.infer<typeof actionItemSchema>) => {
     if (!user || !meeting) return;
     
-    setLoading(true);
+    setSubmitLoading(true);
     try {
       const newActionItem = await api.actionItems.create({
         meetingId: meeting.id,
@@ -155,7 +159,7 @@ const ManageActionItems = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setSubmitLoading(false);
     }
   };
 
@@ -192,22 +196,21 @@ const ManageActionItems = () => {
     
     setAiLoading(true);
     try {
-      const response = await aiService.extractActionItems(minutesText);
+      // Use the AI service to extract action items
+      const response = await api.ai.extractActionItems(minutesText);
       
-      if (response.success && users.length > 0) {
-        // Map suggested assignee names to user IDs
-        const mappedSuggestions = await aiService.mapSuggestedAssigneesToUserIds(
-          response.suggestions, 
-          users
-        );
-        
-        setSuggestions(mappedSuggestions);
+      if (response.suggestions && response.suggestions.length > 0 && users.length > 0) {
+        setSuggestions(response.suggestions);
         setActiveTab('suggestions');
+        
+        toast({
+          title: "Success",
+          description: `Found ${response.suggestions.length} potential action items.`,
+        });
       } else {
         toast({
-          title: "Error",
-          description: "Could not extract action items from the text.",
-          variant: "destructive",
+          title: "No action items found",
+          description: "The AI couldn't identify any clear action items in the text.",
         });
       }
     } catch (error) {
@@ -235,6 +238,44 @@ const ManageActionItems = () => {
     setActiveTab('new');
   };
 
+  const saveAllActionItems = async () => {
+    if (!id || actionItems.length === 0) return;
+
+    setSubmitLoading(true);
+    try {
+      // Format the action items for the batch update endpoint
+      const formattedItems = actionItems.map(item => ({
+        id: item.id,
+        taskName: item.taskName,
+        assignees: item.assignees,
+        deadline: item.deadline,
+        priority: item.priority,
+        progress: item.progress,
+        additionalComments: item.additionalComments
+      }));
+
+      // Call batch update API
+      await api.actionItems.batchUpdate(id, formattedItems);
+      
+      toast({
+        title: "All action items saved",
+        description: "Your changes have been saved successfully.",
+      });
+      
+      // Navigate back to meeting detail
+      navigate(`/meetings/${id}`);
+    } catch (error) {
+      console.error('Error saving action items:', error);
+      toast({
+        title: "Error",
+        description: "Could not save all action items. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-10">Loading...</div>;
   }
@@ -252,12 +293,22 @@ const ManageActionItems = () => {
             Manage tasks and follow-ups from this meeting
           </p>
         </div>
-        <Button 
-          variant="outline"
-          onClick={() => navigate(`/meetings/${id}`)}
-        >
-          Back to Meeting
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => navigate(`/meetings/${id}`)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            className="bg-synchro-600 hover:bg-synchro-700"
+            onClick={saveAllActionItems}
+            disabled={submitLoading}
+          >
+            {submitLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Save All Changes
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -481,9 +532,16 @@ const ManageActionItems = () => {
                     <Button 
                       type="submit" 
                       className="bg-synchro-600 hover:bg-synchro-700"
-                      disabled={loading}
+                      disabled={submitLoading}
                     >
-                      {loading ? "Creating..." : "Create Action Item"}
+                      {submitLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create Action Item"
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -519,7 +577,14 @@ const ManageActionItems = () => {
                     className="bg-synchro-600 hover:bg-synchro-700"
                     disabled={aiLoading || !minutesText.trim()}
                   >
-                    {aiLoading ? "Processing..." : "Extract Action Items"}
+                    {aiLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Extract Action Items"
+                    )}
                   </Button>
                 </div>
                 

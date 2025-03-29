@@ -1,6 +1,21 @@
+
 import axios from 'axios';
 import { User, Meeting, ActionItem, BackendConfig } from '@/types';
 
+// Auth API
+const authApi = {
+  login: async (credentials: { email: string; password: string }) => {
+    const response = await axios.post('/api/auth/login', credentials);
+    return response.data;
+  },
+  
+  register: async (userData: Omit<User, "id" | "createdAt"> & { password: string }) => {
+    const response = await axios.post('/api/auth/register', userData);
+    return response.data;
+  }
+};
+
+// Users API
 const usersApi = {
   getAll: async () => {
     const response = await axios.get<User[]>('/api/users');
@@ -33,6 +48,7 @@ const usersApi = {
   }
 };
 
+// Meetings API
 const meetingsApi = {
   getAll: async () => {
     const response = await axios.get<Meeting[]>('/api/meetings');
@@ -70,8 +86,56 @@ const meetingsApi = {
     const response = await axios.get<ActionItem[]>(`/api/action-items?meetingId=${meetingId}`);
     return response.data;
   },
+  
+  // Add missing methods based on errors
+  getMeetingStats: async (meetingId: string) => {
+    const response = await axios.get(`/api/meetings/${meetingId}/dashboard`);
+    return response.data;
+  },
+  
+  uploadMinutes: async (meetingId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axios.post(
+      `/api/meetings/${meetingId}/minutes/upload`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
+  
+  updateMinutesText: async (meetingId: string, formattedMinutesText: string) => {
+    const response = await axios.put(`/api/meetings/${meetingId}/minutes`, { formattedMinutesText });
+    return response.data;
+  },
+  
+  generateMinutesPdf: async (meetingId: string) => {
+    const response = await axios.post(`/api/meetings/${meetingId}/minutes/generate-pdf`);
+    return response.data;
+  },
+  
+  addAttendee: async (meetingId: string, userId: string) => {
+    const response = await axios.post(`/api/meetings/${meetingId}/attendees`, { userId });
+    return response.data;
+  },
+  
+  promoteAttendee: async (meetingId: string, userId: string) => {
+    const response = await axios.put(`/api/meetings/${meetingId}/attendees/${userId}/promote`);
+    return response.data;
+  },
+  
+  removeAttendee: async (meetingId: string, userId: string) => {
+    const response = await axios.delete(`/api/meetings/${meetingId}/attendees/${userId}`);
+    return response.data;
+  }
 };
 
+// Action Items API
 const actionItemsApi = {
   getAll: async () => {
     const response = await axios.get<ActionItem[]>('/api/action-items');
@@ -96,9 +160,31 @@ const actionItemsApi = {
   delete: async (id: string) => {
     const response = await axios.delete(`/api/action-items/${id}`);
     return response.data;
+  },
+  
+  // Add missing methods based on errors
+  getByMeeting: async (meetingId: string) => {
+    const response = await axios.get<ActionItem[]>(`/api/meetings/${meetingId}/action-items`);
+    return response.data;
+  },
+  
+  batchUpdate: async (meetingId: string, actionItems: Array<Partial<ActionItem> & { id?: string }>) => {
+    const response = await axios.put(`/api/meetings/${meetingId}/action-items`, { actionItems });
+    return response.data;
+  },
+  
+  getAssignedToUser: async (userId: string) => {
+    const response = await axios.get<ActionItem[]>(`/api/tasks/assigned`);
+    return response.data;
+  },
+  
+  getScheduledByUser: async (userId: string) => {
+    const response = await axios.get<ActionItem[]>(`/api/tasks/scheduled`);
+    return response.data;
   }
 };
 
+// Config API
 const backendConfigApi = {
   get: async () => {
     const response = await axios.get<BackendConfig>('/api/config');
@@ -106,9 +192,39 @@ const backendConfigApi = {
   },
 };
 
+// AI API
+const aiApi = {
+  extractActionItems: async (meetingId: string) => {
+    const response = await axios.post(`/api/meetings/${meetingId}/extract-actions`);
+    return response.data;
+  },
+  
+  generateSummary: async (meetingId: string) => {
+    const response = await axios.post(`/api/meetings/${meetingId}/generate-summary`);
+    return response.data;
+  }
+};
+
+// Files API
+const filesApi = {
+  uploadMeetingMinutes: async (meetingId: string, file: File) => {
+    return meetingsApi.uploadMinutes(meetingId, file);
+  },
+  
+  downloadMinutesPdf: async (meetingId: string) => {
+    const response = await axios.get(`/api/meetings/${meetingId}/minutes/pdf`, { 
+      responseType: 'blob' 
+    });
+    return response.data;
+  }
+};
+
 export const api = {
+  auth: authApi,
   users: usersApi,
   meetings: meetingsApi,
   actionItems: actionItemsApi,
   config: backendConfigApi,
+  ai: aiApi,
+  files: filesApi
 };

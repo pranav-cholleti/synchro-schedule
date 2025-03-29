@@ -21,14 +21,16 @@ const Dashboard = () => {
       try {
         // Fetch meetings and tasks
         const [fetchedMeetings, fetchedTasks] = await Promise.all([
-          api.meetings.getAll(user.id),
+          api.meetings.getAll(),
           api.actionItems.getAssignedToUser(user.id)
         ]);
         
-        setMeetings(fetchedMeetings);
-        setTasks(fetchedTasks);
+        setMeetings(Array.isArray(fetchedMeetings) ? fetchedMeetings : []);
+        setTasks(Array.isArray(fetchedTasks) ? fetchedTasks : []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        setMeetings([]);
+        setTasks([]);
       } finally {
         setLoading(false);
       }
@@ -38,23 +40,27 @@ const Dashboard = () => {
   }, [user]);
   
   // Filter for upcoming meetings (next 7 days)
-  const upcomingMeetings = meetings
-    .filter(meeting => {
-      const meetingDate = new Date(meeting.dateTime);
-      const today = new Date();
-      const oneWeekFromNow = new Date();
-      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-      
-      return meetingDate >= today && meetingDate <= oneWeekFromNow;
-    })
-    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
-    .slice(0, 3); // Show max 3 upcoming meetings
+  const upcomingMeetings = meetings && Array.isArray(meetings) 
+    ? meetings
+        .filter(meeting => {
+          const meetingDate = new Date(meeting.dateTime);
+          const today = new Date();
+          const oneWeekFromNow = new Date();
+          oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+          
+          return meetingDate >= today && meetingDate <= oneWeekFromNow;
+        })
+        .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
+        .slice(0, 3) // Show max 3 upcoming meetings
+    : [];
   
   // Filter for high priority pending tasks
-  const pendingTasks = tasks
-    .filter(task => task.progress !== 'Completed')
-    .sort((a, b) => a.priority - b.priority) // Lower number = higher priority
-    .slice(0, 5); // Show max 5 pending tasks
+  const pendingTasks = tasks && Array.isArray(tasks)
+    ? tasks
+        .filter(task => task.progress !== 'Completed')
+        .sort((a, b) => a.priority - b.priority) // Lower number = higher priority
+        .slice(0, 5) // Show max 5 pending tasks
+    : [];
   
   if (!user) return null;
   
@@ -117,7 +123,7 @@ const Dashboard = () => {
                           {meetingDate.toLocaleDateString()} at {meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {meeting.attendees.length} attendees
+                          {meeting.attendees?.length || 0} attendees
                         </p>
                       </div>
                     </li>

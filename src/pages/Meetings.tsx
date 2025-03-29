@@ -1,309 +1,300 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/services/api';
 import { Meeting } from '@/types';
-import { 
-  Card, 
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { 
+  CalendarPlus, 
   Calendar, 
+  Search, 
+  ArrowUpDown, 
   Users, 
-  ExternalLink, 
-  MapPin, 
-  MoreHorizontal,
-  Search,
-  SortAsc,
-  SortDesc,
-  CalendarRange,
-  UserCircle
+  VideoIcon, 
+  MapPin,
+  Eye,
+  Pencil,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from '@/components/ui/badge';
-
-const MeetingCard = ({ meeting }: { meeting: Meeting }) => {
-  const { user } = useAuth();
-  const isHost = meeting.attendees.some(a => a.userId === user?.id && a.role === 'host');
-  const meetingDate = new Date(meeting.dateTime);
-  const isPast = meetingDate < new Date();
-
-  return (
-    <Card className="mb-4 overflow-hidden hover:shadow-md transition-shadow">
-      <div className="border-l-4 border-synchro-600">
-        <CardContent className="p-0">
-          <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-            <div className="md:col-span-2">
-              <div className="flex items-start">
-                <div className="mr-3 mt-1">
-                  <Calendar className="h-5 w-5 text-synchro-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-lg">{meeting.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {meetingDate.toLocaleDateString()} at {meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                  <div className="flex items-center mt-2">
-                    <Badge variant={isPast ? "secondary" : "default"} className={isPast ? "bg-gray-200 text-gray-800" : "bg-synchro-100 text-synchro-800"}>
-                      {isPast ? "Past" : "Upcoming"}
-                    </Badge>
-                    <Badge variant="outline" className="ml-2 border-synchro-200 text-synchro-800">
-                      {isHost ? "Host" : "Attendee"}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col">
-              <div className="flex items-center text-sm text-gray-600">
-                <Users className="h-4 w-4 mr-2" />
-                <span>{meeting.attendees.length} attendees</span>
-              </div>
-              <div className="flex items-center mt-2 text-sm text-gray-600">
-                {meeting.isOnline ? (
-                  <>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    <span>Online Meeting</span>
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <span>In-Person</span>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex justify-end items-center space-x-3">
-              <Link to={`/meetings/${meeting.id}`}>
-                <Button variant="outline" size="sm">View Details</Button>
-              </Link>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Meeting Options</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Link to={`/meetings/${meeting.id}`} className="flex w-full">View Details</Link>
-                  </DropdownMenuItem>
-                  {isHost && (
-                    <DropdownMenuItem>
-                      <Link to={`/meetings/${meeting.id}/edit`} className="flex w-full">Edit Meeting</Link>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </CardContent>
-      </div>
-    </Card>
-  );
-};
 
 const Meetings = () => {
   const { user } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [filteredMeetings, setFilteredMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [filterRole, setFilterRole] = useState<'all' | 'host' | 'attendee'>('all');
-  const [filterTime, setFilterTime] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [sortBy, setSortBy] = useState('dateTime');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filter, setFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    const fetchMeetings = async () => {
-      if (!user) return;
-      
-      try {
-        const fetchedMeetings = await api.meetings.getAll(user.id);
-        setMeetings(fetchedMeetings);
-        setFilteredMeetings(fetchedMeetings);
-      } catch (error) {
-        console.error('Error fetching meetings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchMeetings();
-  }, [user]);
-
-  useEffect(() => {
-    if (!meetings.length) return;
-    
-    // Apply filters
-    let result = [...meetings];
-    
-    // Search filter
-    if (searchTerm) {
-      result = result.filter(meeting => 
-        meeting.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Role filter
-    if (filterRole !== 'all') {
-      result = result.filter(meeting => 
-        meeting.attendees.some(a => 
-          a.userId === user?.id && a.role === filterRole
-        )
-      );
-    }
-    
-    // Time filter
-    if (filterTime !== 'all') {
-      const now = new Date();
-      if (filterTime === 'upcoming') {
-        result = result.filter(meeting => new Date(meeting.dateTime) >= now);
+  const fetchMeetings = async () => {
+    setLoading(true);
+    try {
+      // Note: Removed userId parameter
+      const response = await api.meetings.getAll();
+      if (response.success && response.data) {
+        setMeetings(response.data.meetings || []);
+        setTotalPages(response.data.totalPages || 1);
+        setCurrentPage(response.data.currentPage || 1);
       } else {
-        result = result.filter(meeting => new Date(meeting.dateTime) < now);
+        setMeetings([]);
       }
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      setMeetings([]);
+    } finally {
+      setLoading(false);
     }
-    
-    // Apply sorting
-    result = result.sort((a, b) => {
-      const dateA = new Date(a.dateTime).getTime();
-      const dateB = new Date(b.dateTime).getTime();
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-    });
-    
-    setFilteredMeetings(result);
-  }, [meetings, searchTerm, filterRole, filterTime, sortOrder, user]);
+  };
 
-  if (!user) return null;
+  useEffect(() => {
+    if (user) {
+      fetchMeetings();
+    }
+  }, [user, searchTerm, sortBy, sortOrder, filter, currentPage]);
+
+  // Function to handle search
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  // Function to handle sort
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      // Toggle order if same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to desc for date, asc for others
+      setSortBy(field);
+      setSortOrder(field === 'dateTime' ? 'desc' : 'asc');
+    }
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  // Function to handle filter
+  const handleFilter = (value: string) => {
+    setFilter(value);
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
+  // Pagination handlers
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-        <h1 className="text-2xl font-bold">My Meetings</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Meetings</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">View and manage all meetings you're involved in</p>
+        </div>
         <Link to="/meetings/create">
-          <Button className="bg-synchro-600 hover:bg-synchro-700">Create New Meeting</Button>
+          <Button className="bg-synchro-600 hover:bg-synchro-700">
+            <CalendarPlus className="mr-2 h-4 w-4" /> Create New Meeting
+          </Button>
         </Link>
       </div>
       
-      {/* Filters and Search */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Search & Filter</CardTitle>
-          <CardDescription>Find specific meetings</CardDescription>
+        <CardHeader>
+          <CardTitle>Meetings List</CardTitle>
+          <CardDescription>All meetings where you're a host or attendee</CardDescription>
         </CardHeader>
+        
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="sm:col-span-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search by meeting name..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+              <Input
+                placeholder="Search meetings..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={handleSearch}
+              />
             </div>
             
-            <div>
-              <Select value={filterRole} onValueChange={(value) => setFilterRole(value as 'all' | 'host' | 'attendee')}>
-                <SelectTrigger className="w-full">
-                  <div className="flex items-center">
-                    <UserCircle className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filter by role" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="host">As Host</SelectItem>
-                  <SelectItem value="attendee">As Attendee</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Select value={filterTime} onValueChange={(value) => setFilterTime(value as 'all' | 'upcoming' | 'past')}>
-                <SelectTrigger className="w-full">
-                  <div className="flex items-center">
-                    <CalendarRange className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filter by time" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
-                  <SelectItem value="past">Past</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={filter} onValueChange={handleFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Meetings</SelectItem>
+                <SelectItem value="host">Meetings I Host</SelectItem>
+                <SelectItem value="attendee">Meetings I Attend</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
-          <div className="mt-4 flex justify-end">
-            <Button
-              variant="ghost"
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="text-sm flex items-center"
-            >
-              {sortOrder === 'asc' ? (
-                <>
-                  <SortAsc className="h-4 w-4 mr-1" /> Sort by date (earliest first)
-                </>
-              ) : (
-                <>
-                  <SortDesc className="h-4 w-4 mr-1" /> Sort by date (latest first)
-                </>
-              )}
-            </Button>
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-synchro-600"></div>
+            </div>
+          ) : meetings.length === 0 ? (
+            <div className="text-center py-8">
+              <Calendar className="h-12 w-12 mx-auto text-gray-400" />
+              <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">No meetings found</h3>
+              <p className="mt-1 text-gray-500 dark:text-gray-400">
+                {searchTerm || filter 
+                  ? "Try adjusting your search or filter" 
+                  : "You don't have any meetings scheduled yet"}
+              </p>
+              <div className="mt-6">
+                <Link to="/meetings/create">
+                  <Button className="bg-synchro-600 hover:bg-synchro-700">
+                    <CalendarPlus className="mr-2 h-4 w-4" /> Schedule a Meeting
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Meeting Name
+                        {sortBy === 'name' && (
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => handleSort('dateTime')}
+                    >
+                      <div className="flex items-center">
+                        Date & Time
+                        {sortBy === 'dateTime' && (
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead>Your Role</TableHead>
+                    <TableHead>Format</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {meetings.map((meeting) => {
+                    const meetingDate = new Date(meeting.dateTime);
+                    return (
+                      <TableRow key={meeting.id}>
+                        <TableCell className="font-medium">{meeting.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                            <span>
+                              {meetingDate.toLocaleDateString()}, {' '}
+                              {meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            meeting.userRole === 'host' 
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                          }`}>
+                            <Users className="mr-1 h-3 w-3" />
+                            {meeting.userRole === 'host' ? 'Host' : 'Attendee'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {meeting.isOnline ? (
+                            <span className="inline-flex items-center text-synchro-600 dark:text-synchro-400">
+                              <VideoIcon className="mr-1 h-4 w-4" /> Online
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-gray-600 dark:text-gray-400">
+                              <MapPin className="mr-1 h-4 w-4" /> In Person
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Link to={`/meetings/${meeting.id}`}>
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-1" /> View
+                              </Button>
+                            </Link>
+                            {meeting.userRole === 'host' && (
+                              <Link to={`/meetings/${meeting.id}/edit`}>
+                                <Button variant="outline" size="sm">
+                                  <Pencil className="h-4 w-4 mr-1" /> Edit
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {!loading && meetings.length > 0 && (
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={goToPrevPage}
+                  disabled={currentPage <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={goToNextPage}
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
-      
-      {/* Meeting List */}
-      <div className="space-y-2">
-        {loading ? (
-          <Card>
-            <CardContent className="flex justify-center items-center py-8">
-              <p className="text-gray-500">Loading your meetings...</p>
-            </CardContent>
-          </Card>
-        ) : filteredMeetings.length > 0 ? (
-          filteredMeetings.map(meeting => (
-            <MeetingCard key={meeting.id} meeting={meeting} />
-          ))
-        ) : (
-          <Card>
-            <CardContent className="flex flex-col justify-center items-center py-12">
-              <p className="text-gray-500 mb-4">No meetings found matching your filters</p>
-              <Link to="/meetings/create">
-                <Button variant="outline">Create a New Meeting</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-      </div>
     </div>
   );
 };

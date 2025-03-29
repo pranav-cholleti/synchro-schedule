@@ -216,6 +216,10 @@ const filesApi = {
       responseType: 'blob' 
     });
     return response.data;
+  },
+  
+  generateMeetingPDF: async (meetingId: string) => {
+    return meetingsApi.generateMinutesPdf(meetingId);
   }
 };
 

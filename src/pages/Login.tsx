@@ -1,5 +1,4 @@
 
-// Fix imports as needed, without removing anything existing
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';

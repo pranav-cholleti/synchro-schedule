@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,8 +46,8 @@ const App = () => (
               <Route path="/meetings/:id" element={<MeetingDetail />} />
               <Route path="/meetings/:id/dashboard" element={<MeetingDashboard />} />
               <Route path="/tasks" element={<Tasks />} />
-              <Route path="/meetings/:id/edit" element={<ProtectedRoute><EditMeeting /></ProtectedRoute>} />
-              <Route path="/meetings/:id/action-items" element={<ProtectedRoute><ManageActionItems /></ProtectedRoute>} />
+              <Route path="/meetings/:id/edit" element={<EditMeeting />} />
+              <Route path="/meetings/:id/action-items" element={<ManageActionItems />} />
             </Route>
             
             {/* Catch-all route */}

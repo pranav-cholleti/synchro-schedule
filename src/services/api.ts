@@ -136,6 +136,15 @@ const meetingsApi = {
       console.error(`Error generating PDF for meeting ${meetingId}:`, error);
       throw error;
     }
+  },
+  getMeetingStats: async (meetingId) => {
+    try {
+      const response = await axios.get(`/api/meetings/${meetingId}/stats`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching stats for meeting ${meetingId}:`, error);
+      return null;
+    }
   }
 };
 
@@ -156,6 +165,24 @@ const actionItemsApi = {
     } catch (error) {
       console.error(`Error fetching action item ${id}:`, error);
       return null;
+    }
+  },
+  getByMeeting: async (meetingId) => {
+    try {
+      const response = await axios.get(`/api/action-items?meetingId=${meetingId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching action items for meeting ${meetingId}:`, error);
+      return [];
+    }
+  },
+  getAssignedToUser: async (userId) => {
+    try {
+      const response = await axios.get(`/api/action-items?assignedTo=${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching action items for user ${userId}:`, error);
+      return [];
     }
   },
   create: async (actionItem) => {
@@ -182,6 +209,15 @@ const actionItemsApi = {
       return response.data;
     } catch (error) {
       console.error(`Error deleting action item ${id}:`, error);
+      throw error;
+    }
+  },
+  batchUpdate: async (meetingId, actionItems) => {
+    try {
+      const response = await axios.put(`/api/action-items/batch/${meetingId}`, { actionItems });
+      return response.data;
+    } catch (error) {
+      console.error('Error batch updating action items:', error);
       throw error;
     }
   }
@@ -254,6 +290,15 @@ const aiApi = {
       return response.data;
     } catch (error) {
       console.error('Error generating action items:', error);
+      throw error;
+    }
+  },
+  extractActionItems: async (minutesText) => {
+    try {
+      const response = await axios.post(`/api/ai/extract-action-items`, { minutesText });
+      return response.data;
+    } catch (error) {
+      console.error('Error extracting action items from text:', error);
       throw error;
     }
   }

@@ -132,7 +132,7 @@ const Meetings = () => {
   
   // Render a meeting card
   const renderMeetingCard = (meeting: Meeting) => {
-    const isHost = meeting.host === user?.id;
+    const isHost = meeting.attendees.some(a => a.userId === user?.id && a.role === 'host');
     
     return (
       <Card key={meeting.id} className="overflow-hidden">
@@ -208,10 +208,10 @@ const Meetings = () => {
               <span>{meeting.isOnline ? 'Online' : 'In Person'}</span>
             </div>
             
-            {/* <div className="flex items-center text-gray-600 dark:text-gray-400">
+            <div className="flex items-center text-gray-600 dark:text-gray-400">
               <Users className="h-4 w-4 mr-2" />
               <span>{meeting.attendees.length} attendees</span>
-            </div> */}
+            </div>
           </div>
         </CardContent>
         

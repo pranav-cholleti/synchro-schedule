@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
@@ -210,15 +211,15 @@ const MeetingDetail = () => {
         {/* Minutes Tab */}
         <TabsContent value="minutes" className="mt-4">
           <MinutesEditor 
-            initialValue={minutes}
+            content={minutes}
             onSave={handleSaveMinutes}
-            saving={savingMinutes}
+            isSaving={savingMinutes}
           />
         </TabsContent>
         
         {/* Action Items Tab */}
         <TabsContent value="action-items" className="mt-4">
-          <ActionItemsList meetingId={id} actionItems={actionItems} setActionItems={setActionItems} />
+          <ActionItemsList items={actionItems} setItems={setActionItems} />
         </TabsContent>
         
         {/* Files Tab */}
@@ -230,7 +231,7 @@ const MeetingDetail = () => {
       </Tabs>
       
       {/* Meeting Actions */}
-      <MeetingActions meeting={meeting} isPastMeeting={isPastMeeting} handleDownloadPDF={handleDownloadPDF} />
+      <MeetingActions meetingId={id} isPast={isPastMeeting} onDownloadPDF={handleDownloadPDF} />
     </div>
   );
 };

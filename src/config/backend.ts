@@ -9,7 +9,7 @@ const defaultConfig: BackendConfig = {
 };
 
 // Load configuration from environment variables if available
-export const getBackendConfig = (): BackendConfig => {
+const getBackendConfig = (): BackendConfig => {
   return {
     apiUrl: import.meta.env.VITE_API_URL || defaultConfig.apiUrl,
     aiServiceUrl: import.meta.env.VITE_AI_SERVICE_URL || defaultConfig.aiServiceUrl,

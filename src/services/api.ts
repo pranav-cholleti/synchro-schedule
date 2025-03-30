@@ -3,7 +3,7 @@ import axios from 'axios';
 import getBackendConfig from '@/config/backend';
 
 // Configure axios with base URL and interceptors
-const baseURL = getBackendConfig().apiUrl;
+const baseURL = getBackendConfig.apiUrl;
 const axiosInstance = axios.create({ baseURL });
 
 // Add request interceptor to add auth token to headers
@@ -50,7 +50,7 @@ const authApi = {
   register: async (userData) => {
     try {
       const response = await axiosInstance.post('/auth/register', userData);
-      return response.data.data;
+      return response.data;
     } catch (error) {
       console.error('Error during registration:', error);
       throw error;
@@ -77,6 +77,16 @@ const usersApi = {
       console.error('Error fetching organisation users:', error);
       return [];
     }
+  },
+  // Add getById method that was missing
+  getById: async (id) => {
+    try {
+      const response = await axiosInstance.get(`/users/${id}`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error fetching user ${id}:`, error);
+      return null;
+    }
   }
 };
 
@@ -97,6 +107,26 @@ const meetingsApi = {
       return response.data.data;
     } catch (error) {
       console.error(`Error fetching meeting ${id}:`, error);
+      return null;
+    }
+  },
+  // Add getActionItems method that was missing
+  getActionItems: async (meetingId) => {
+    try {
+      const response = await axiosInstance.get(`/meetings/${meetingId}/action-items`);
+      return response.data.data || [];
+    } catch (error) {
+      console.error(`Error fetching action items for meeting ${meetingId}:`, error);
+      return [];
+    }
+  },
+  // Add getMeetingStats method that was missing
+  getMeetingStats: async (meetingId) => {
+    try {
+      const response = await axiosInstance.get(`/meetings/${meetingId}/dashboard`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error fetching meeting stats for meeting ${meetingId}:`, error);
       return null;
     }
   },
@@ -236,6 +266,16 @@ const actionItemsApi = {
       return [];
     }
   },
+  // Add getByMeeting method that was missing
+  getByMeeting: async (meetingId) => {
+    try {
+      const response = await axiosInstance.get(`/meetings/${meetingId}/action-items`);
+      return response.data.data || [];
+    } catch (error) {
+      console.error(`Error fetching action items for meeting ${meetingId}:`, error);
+      return [];
+    }
+  },
   create: async (task) => {
     try {
       const response = await axiosInstance.post('/tasks', task);
@@ -262,6 +302,29 @@ const actionItemsApi = {
       console.error(`Error deleting task ${id}:`, error);
       throw error;
     }
+  },
+  // Add batchUpdate method that was missing
+  batchUpdate: async (meetingId, tasks) => {
+    try {
+      const response = await axiosInstance.put(`/meetings/${meetingId}/action-items`, { actionItems: tasks });
+      return response.data;
+    } catch (error) {
+      console.error(`Error batch updating tasks for meeting ${meetingId}:`, error);
+      throw error;
+    }
+  }
+};
+
+// Add AI API service
+const aiApi = {
+  extractActionItems: async (text) => {
+    try {
+      const response = await axiosInstance.post('/ai/extract-action-items', { text });
+      return response.data;
+    } catch (error) {
+      console.error('Error extracting action items with AI:', error);
+      throw error;
+    }
   }
 };
 
@@ -269,5 +332,6 @@ export const api = {
   users: usersApi,
   meetings: meetingsApi,
   actionItems: actionItemsApi,
-  auth: authApi
+  auth: authApi,
+  ai: aiApi
 };

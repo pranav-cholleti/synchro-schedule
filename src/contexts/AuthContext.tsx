@@ -1,6 +1,8 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthUser } from '@/types';
+import axios from 'axios';
+import getBackendConfig from '@/config/backend';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -27,17 +29,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for saved user data in localStorage
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        console.error('Failed to parse user data', error);
-        localStorage.removeItem('user');
+    // Check for saved user and token in localStorage
+    const init = async () => {
+      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      if (savedUser && token) {
+        try {
+          // Parse the saved user data
+          const userData = JSON.parse(savedUser);
+          setUser(userData);
+          
+          // Set default Authorization header for all future requests
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          axios.defaults.baseURL = getBackendConfig().apiUrl;
+        } catch (error) {
+          console.error('Failed to parse user data', error);
+          // Clean up potentially corrupted data
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
       }
-    }
-    setIsLoading(false);
+      
+      setIsLoading(false);
+    };
+    
+    init();
   }, []);
 
   const login = (userData: AuthUser) => {
@@ -48,6 +65,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    // Remove the Authorization header
+    delete axios.defaults.headers.common['Authorization'];
   };
 
   return (

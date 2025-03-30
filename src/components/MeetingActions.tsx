@@ -3,18 +3,22 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart4, Edit, ListTodo } from 'lucide-react';
+import { BarChart4, Edit, ListTodo, Download } from 'lucide-react';
 
 interface MeetingActionsProps {
   meetingId: string;
   isHost: boolean;
   hasActionItems: boolean;
+  isPast?: boolean;
+  onDownloadPDF?: () => Promise<void>;
 }
 
 const MeetingActions: React.FC<MeetingActionsProps> = ({
   meetingId,
   isHost,
-  hasActionItems
+  hasActionItems,
+  isPast = false,
+  onDownloadPDF
 }) => {
   return (
     <Card>
@@ -28,6 +32,18 @@ const MeetingActions: React.FC<MeetingActionsProps> = ({
             <span>Dashboard</span>
           </Button>
         </Link>
+        
+        {isPast && onDownloadPDF && (
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={onDownloadPDF}
+          >
+            <Download className="h-4 w-4" />
+            <span>Download PDF</span>
+          </Button>
+        )}
+        
         {isHost && (
           <>
             <Link to={`/meetings/${meetingId}/edit`}>

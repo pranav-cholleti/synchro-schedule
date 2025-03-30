@@ -31,8 +31,11 @@ const Login = () => {
     try {
       const response = await api.auth.login(formData);
       
-      if (response.success && response.data) {
-        // Assuming the API returns data in the format { user: {...}, token: '...' }
+      if (response.success) {
+        // Store token in localStorage for authentication
+        localStorage.setItem('token', response.data.token);
+        
+        // Log in the user
         login(response.data.user);
         
         toast({

@@ -24,10 +24,10 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   age: z.coerce.number().min(18, { message: "You must be at least 18 years old" }).max(120, { message: "Age must be realistic" }),
   organisation: z.string().min(2, { message: "Organisation name is required" }),
-  position: z.string().min(2, { message: "Position is required" }),
+  employmentPosition: z.string().min(2, { message: "Position is required" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
   mobile: z.string().optional(),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -46,7 +46,7 @@ const Register = () => {
       name: "",
       age: 25,
       organisation: "",
-      position: "",
+      employmentPosition: "",
       email: "",
       mobile: "",
       password: "",
@@ -58,26 +58,28 @@ const Register = () => {
     setLoading(true);
     try {
       // Exclude confirmPassword from the API call
-      const { confirmPassword, password, ...userData } = values;
+      const { confirmPassword, ...userData } = values;
       
-      // Ensure all required fields are present and non-optional for the API call
-      const userDataForApi = {
-        ...userData,
-        name: userData.name,        // Ensure non-optional
-        age: userData.age,          // Ensure non-optional
-        organisation: userData.organisation, // Ensure non-optional
-        position: userData.position,   // Ensure non-optional
-        email: userData.email,      // Ensure non-optional
-        mobile: userData.mobile,    // This can remain optional
-        password: password,         // Add password back
-      };
+      // Register the user
+      const user = await api.auth.register(userData);
       
-      const user = await api.auth.register(userDataForApi);
-      login(user);
+      // Now login the user
+      const loginResponse = await api.auth.login({
+        email: values.email,
+        password: values.password
+      });
+      
+      // Store token
+      localStorage.setItem('token', loginResponse.data.token);
+      
+      // Update auth context
+      login(loginResponse.data.user);
+      
       toast({
         title: "Registration successful",
         description: `Welcome, ${user.name}!`,
       });
+      
       navigate('/dashboard');
     } catch (error) {
       console.error(error);
@@ -161,7 +163,7 @@ const Register = () => {
               
               <FormField
                 control={form.control}
-                name="position"
+                name="employmentPosition"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Position</FormLabel>

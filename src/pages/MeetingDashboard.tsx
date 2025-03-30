@@ -55,15 +55,23 @@ const MeetingDashboard = () => {
       if (!id || !user) return;
 
       try {
-        const [fetchedMeeting, fetchedTasks, fetchedStats] = await Promise.all([
-          api.meetings.getById(id),
-          api.actionItems.getByMeeting(id),
-          api.meetings.getMeetingStats(id)
-        ]);
-
+        const fetchedMeeting = await api.meetings.getById(id);
         setMeeting(fetchedMeeting);
-        setTasks(fetchedTasks);
-        setStats(fetchedStats);
+        
+        // Only proceed with other API calls if meeting exists
+        if (fetchedMeeting) {
+          try {
+            const [fetchedTasks, fetchedStats] = await Promise.all([
+              api.actionItems.getByMeeting(id),
+              api.meetings.getMeetingStats(id)
+            ]);
+            
+            if (fetchedTasks) setTasks(fetchedTasks);
+            if (fetchedStats) setStats(fetchedStats);
+          } catch (error) {
+            console.error('Error fetching tasks or stats:', error);
+          }
+        }
       } catch (error) {
         console.error('Error fetching meeting data:', error);
       } finally {
@@ -82,7 +90,7 @@ const MeetingDashboard = () => {
     );
   }
 
-  if (!meeting || !stats) {
+  if (!meeting) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-bold">Meeting Dashboard</h1>
@@ -100,26 +108,31 @@ const MeetingDashboard = () => {
   }
 
   const meetingDate = new Date(meeting.dateTime);
-  const isHost = meeting.attendees.some(a => a.userId === user?.id && a.role === 'host');
+  // Safe check for user and meeting attendees
+  const isHost = meeting.attendees && Array.isArray(meeting.attendees) && user ? 
+    meeting.attendees.some(a => a.userId === user.id && a.role === 'host') : false;
 
-  // Prepare chart data
-  const taskStatusData = Object.entries(stats.tasksByStatus).map(([status, count]) => ({
-    name: status,
-    value: count,
-  }));
+  // Prepare chart data with null checks
+  const taskStatusData = stats && stats.tasksByStatus ? 
+    Object.entries(stats.tasksByStatus).map(([status, count]) => ({
+      name: status,
+      value: count,
+    })) : [];
 
-  const priorityData = Object.entries(stats.priorityDistribution).map(([priority, count]) => ({
-    name: priority,
-    value: count,
-  }));
+  const priorityData = stats && stats.priorityDistribution ? 
+    Object.entries(stats.priorityDistribution).map(([priority, count]) => ({
+      name: priority,
+      value: count,
+    })) : [];
 
-  const assigneeData = stats.assigneeStats.map((stat: any) => ({
-    name: stat.assignee,
-    Completed: stat.completedTasks,
-    'In Progress': stat.inProgressTasks,
-    'Not Started': stat.notStartedTasks,
-    Blocked: stat.blockedTasks,
-  }));
+  const assigneeData = stats && stats.assigneeStats ? 
+    stats.assigneeStats.map((stat: any) => ({
+      name: stat.assignee,
+      Completed: stat.completedTasks,
+      'In Progress': stat.inProgressTasks,
+      'Not Started': stat.notStartedTasks,
+      Blocked: stat.blockedTasks,
+    })) : [];
 
   return (
     <div className="space-y-6">
@@ -161,7 +174,7 @@ const MeetingDashboard = () => {
             <div className="flex items-center">
               <Users className="h-5 w-5 mr-2 text-synchro-600" />
               <span className="font-medium">Attendees:</span>
-              <span className="ml-2">{meeting.attendees.length} participants</span>
+              <span className="ml-2">{meeting.attendees ? meeting.attendees.length : 0} participants</span>
             </div>
             {meeting.isOnline && (
               <div className="flex items-start">
@@ -184,7 +197,7 @@ const MeetingDashboard = () => {
               AI Summary
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              {stats.aiSummary}
+              {stats && stats.aiSummary ? stats.aiSummary : "No AI summary available yet."}
             </p>
             {isHost && (
               <div className="mt-4">
@@ -198,235 +211,262 @@ const MeetingDashboard = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="progress">
-        <TabsList className="grid grid-cols-3 mb-4">
-          <TabsTrigger value="progress">Task Progress</TabsTrigger>
-          <TabsTrigger value="priority">Priority Distribution</TabsTrigger>
-          <TabsTrigger value="assignees">Assignee Performance</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="progress" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Task Progress Overview</CardTitle>
-              <CardDescription>Current status of all tasks from this meeting</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-medium mb-4">Status Distribution</h3>
-                <div className="h-64">
-                  <ChartContainer config={taskStatusConfig}>
-                    <PieChart>
-                      <Pie
-                        data={taskStatusData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {taskStatusData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={TASK_STATUS_COLORS[entry.name as keyof typeof TASK_STATUS_COLORS] || COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+      {stats ? (
+        <Tabs defaultValue="progress">
+          <TabsList className="grid grid-cols-3 mb-4">
+            <TabsTrigger value="progress">Task Progress</TabsTrigger>
+            <TabsTrigger value="priority">Priority Distribution</TabsTrigger>
+            <TabsTrigger value="assignees">Assignee Performance</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="progress" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Progress Overview</CardTitle>
+                <CardDescription>Current status of all tasks from this meeting</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Status Distribution</h3>
+                  <div className="h-64">
+                    {taskStatusData.length > 0 ? (
+                      <ChartContainer config={taskStatusConfig}>
+                        <PieChart>
+                          <Pie
+                            data={taskStatusData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {taskStatusData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={TASK_STATUS_COLORS[entry.name as keyof typeof TASK_STATUS_COLORS] || COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                        </PieChart>
+                      </ChartContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-500">
+                        No task data available
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium mb-4">Task Summary</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/20 border-green-200 dark:border-green-800">
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium mb-4">Task Summary</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/20 border-green-200 dark:border-green-800">
+                      <CardContent className="p-4">
+                        <div className="text-green-600 dark:text-green-400 font-medium">Completed</div>
+                        <div className="text-3xl font-bold">{stats.tasksByStatus && stats.tasksByStatus['Completed'] ? stats.tasksByStatus['Completed'] : 0}</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+                      <CardContent className="p-4">
+                        <div className="text-blue-600 dark:text-blue-400 font-medium">In Progress</div>
+                        <div className="text-3xl font-bold">{stats.tasksByStatus && stats.tasksByStatus['In Progress'] ? stats.tasksByStatus['In Progress'] : 0}</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200 dark:border-orange-800">
+                      <CardContent className="p-4">
+                        <div className="text-orange-600 dark:text-orange-400 font-medium">Not Started</div>
+                        <div className="text-3xl font-bold">{stats.tasksByStatus && stats.tasksByStatus['Not Started'] ? stats.tasksByStatus['Not Started'] : 0}</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/20 border-red-200 dark:border-red-800">
+                      <CardContent className="p-4">
+                        <div className="text-red-600 dark:text-red-400 font-medium">Blocked</div>
+                        <div className="text-3xl font-bold">{stats.tasksByStatus && stats.tasksByStatus['Blocked'] ? stats.tasksByStatus['Blocked'] : 0}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <Card>
                     <CardContent className="p-4">
-                      <div className="text-green-600 dark:text-green-400 font-medium">Completed</div>
-                      <div className="text-3xl font-bold">{stats.tasksByStatus['Completed'] || 0}</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-                    <CardContent className="p-4">
-                      <div className="text-blue-600 dark:text-blue-400 font-medium">In Progress</div>
-                      <div className="text-3xl font-bold">{stats.tasksByStatus['In Progress'] || 0}</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200 dark:border-orange-800">
-                    <CardContent className="p-4">
-                      <div className="text-orange-600 dark:text-orange-400 font-medium">Not Started</div>
-                      <div className="text-3xl font-bold">{stats.tasksByStatus['Not Started'] || 0}</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/20 border-red-200 dark:border-red-800">
-                    <CardContent className="p-4">
-                      <div className="text-red-600 dark:text-red-400 font-medium">Blocked</div>
-                      <div className="text-3xl font-bold">{stats.tasksByStatus['Blocked'] || 0}</div>
+                      <div className="text-gray-700 dark:text-gray-300 font-medium mb-2">Overall Progress</div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
+                        <div
+                          className="bg-synchro-600 h-4 rounded-full transition-all duration-500 ease-in-out"
+                          style={{
+                            width: `${stats.tasksByStatus && stats.tasksByStatus['Completed'] && stats.totalTasks ? 
+                              (stats.tasksByStatus['Completed'] / stats.totalTasks * 100) : 0}%`
+                          }}
+                        ></div>
+                      </div>
+                      <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {stats.tasksByStatus && stats.tasksByStatus['Completed'] ? stats.tasksByStatus['Completed'] : 0} of {stats.totalTasks || 0} tasks completed
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-gray-700 dark:text-gray-300 font-medium mb-2">Overall Progress</div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                      <div
-                        className="bg-synchro-600 h-4 rounded-full transition-all duration-500 ease-in-out"
-                        style={{
-                          width: `${stats.tasksByStatus['Completed'] ? (stats.tasksByStatus['Completed'] / stats.totalTasks * 100) : 0}%`
-                        }}
-                      ></div>
-                    </div>
-                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {stats.tasksByStatus['Completed'] || 0} of {stats.totalTasks} tasks completed
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="priority" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Task Priority Distribution</CardTitle>
-              <CardDescription>Overview of task priorities from this meeting</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-medium mb-4">Priority Breakdown</h3>
-                <div className="h-64">
-                  <ChartContainer config={priorityConfig}>
-                    <PieChart>
-                      <Pie
-                        data={priorityData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {priorityData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PRIORITY_COLORS[entry.name as keyof typeof PRIORITY_COLORS] || COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="priority" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Priority Distribution</CardTitle>
+                <CardDescription>Overview of task priorities from this meeting</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Priority Breakdown</h3>
+                  <div className="h-64">
+                    <ChartContainer config={priorityConfig}>
+                      <PieChart>
+                        <Pie
+                          data={priorityData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {priorityData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PRIORITY_COLORS[entry.name as keyof typeof PRIORITY_COLORS] || COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ChartContainer>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium mb-4">Priority Insights</h3>
-                {Object.entries(PRIORITY_COLORS).map(([priority, color]) => (
-                  <Card key={priority} className={`border-l-4`} style={{ borderLeftColor: color }}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium" style={{ color }}>{priority} Priority</div>
-                          <div className="text-gray-500 dark:text-gray-400 text-sm">
-                            {priority === 'High' && 'Requires immediate attention'}
-                            {priority === 'Medium' && 'Should be addressed soon'}
-                            {priority === 'Low' && 'Can be scheduled later'}
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium mb-4">Priority Insights</h3>
+                  {Object.entries(PRIORITY_COLORS).map(([priority, color]) => (
+                    <Card key={priority} className={`border-l-4`} style={{ borderLeftColor: color }}>
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium" style={{ color }}>{priority} Priority</div>
+                            <div className="text-gray-500 dark:text-gray-400 text-sm">
+                              {priority === 'High' && 'Requires immediate attention'}
+                              {priority === 'Medium' && 'Should be addressed soon'}
+                              {priority === 'Low' && 'Can be scheduled later'}
+                            </div>
+                          </div>
+                          <div className="text-2xl font-bold">{stats.priorityDistribution[priority] || 0}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  
+                  {stats.priorityDistribution['High'] > 0 && (
+                    <Alert className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        There {stats.priorityDistribution['High'] === 1 ? 'is' : 'are'} {stats.priorityDistribution['High']} high-priority {stats.priorityDistribution['High'] === 1 ? 'task' : 'tasks'} that need immediate attention.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="assignees" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Assignee Performance</CardTitle>
+                <CardDescription>Breakdown of tasks by assignees and their progress</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80 mb-6">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={assigneeData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Completed" stackId="a" fill={TASK_STATUS_COLORS['Completed']} />
+                      <Bar dataKey="In Progress" stackId="a" fill={TASK_STATUS_COLORS['In Progress']} />
+                      <Bar dataKey="Not Started" stackId="a" fill={TASK_STATUS_COLORS['Not Started']} />
+                      <Bar dataKey="Blocked" stackId="a" fill={TASK_STATUS_COLORS['Blocked']} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                <Separator className="my-6" />
+                
+                <h3 className="text-lg font-medium mb-4">Individual Performance</h3>
+                <div className="space-y-4">
+                  {stats.assigneeStats.map((stat: any, index: number) => (
+                    <Card key={index}>
+                      <CardContent className="p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
+                          <div className="font-medium text-lg">{stat.assignee}</div>
+                          <div className="mt-2 sm:mt-0 flex flex-wrap gap-2">
+                            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
+                              {stat.completedTasks} Completed
+                            </Badge>
+                            <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                              {stat.inProgressTasks} In Progress
+                            </Badge>
+                            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800">
+                              {stat.notStartedTasks} Not Started
+                            </Badge>
+                            {stat.blockedTasks > 0 && (
+                              <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800">
+                                {stat.blockedTasks} Blocked
+                              </Badge>
+                            )}
                           </div>
                         </div>
-                        <div className="text-2xl font-bold">{stats.priorityDistribution[priority] || 0}</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                {stats.priorityDistribution['High'] > 0 && (
-                  <Alert className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      There {stats.priorityDistribution['High'] === 1 ? 'is' : 'are'} {stats.priorityDistribution['High']} high-priority {stats.priorityDistribution['High'] === 1 ? 'task' : 'tasks'} that need immediate attention.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="assignees" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Assignee Performance</CardTitle>
-              <CardDescription>Breakdown of tasks by assignees and their progress</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80 mb-6">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={assigneeData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="Completed" stackId="a" fill={TASK_STATUS_COLORS['Completed']} />
-                    <Bar dataKey="In Progress" stackId="a" fill={TASK_STATUS_COLORS['In Progress']} />
-                    <Bar dataKey="Not Started" stackId="a" fill={TASK_STATUS_COLORS['Not Started']} />
-                    <Bar dataKey="Blocked" stackId="a" fill={TASK_STATUS_COLORS['Blocked']} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <h3 className="text-lg font-medium mb-4">Individual Performance</h3>
-              <div className="space-y-4">
-                {stats.assigneeStats.map((stat: any, index: number) => (
-                  <Card key={index}>
-                    <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
-                        <div className="font-medium text-lg">{stat.assignee}</div>
-                        <div className="mt-2 sm:mt-0 flex flex-wrap gap-2">
-                          <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
-                            {stat.completedTasks} Completed
-                          </Badge>
-                          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-                            {stat.inProgressTasks} In Progress
-                          </Badge>
-                          <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800">
-                            {stat.notStartedTasks} Not Started
-                          </Badge>
-                          {stat.blockedTasks > 0 && (
-                            <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800">
-                              {stat.blockedTasks} Blocked
-                            </Badge>
-                          )}
+                        <div className="space-y-2">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">Progress</div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                            <div
+                              className="bg-synchro-600 h-2.5 rounded-full"
+                              style={{
+                                width: `${stat.totalTasks ? (stat.completedTasks / stat.totalTasks * 100) : 0}%`
+                              }}
+                            ></div>
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {stat.completedTasks} of {stat.totalTasks} tasks completed ({stat.totalTasks ? Math.round(stat.completedTasks / stat.totalTasks * 100) : 0}%)
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">Progress</div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                          <div
-                            className="bg-synchro-600 h-2.5 rounded-full"
-                            style={{
-                              width: `${stat.totalTasks ? (stat.completedTasks / stat.totalTasks * 100) : 0}%`
-                            }}
-                          ></div>
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {stat.completedTasks} of {stat.totalTasks} tasks completed ({stat.totalTasks ? Math.round(stat.completedTasks / stat.totalTasks * 100) : 0}%)
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-medium mb-2">No Dashboard Data Available</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Statistics for this meeting are not available yet. This could be because:
+            </p>
+            <ul className="text-left text-gray-600 dark:text-gray-400 space-y-1 mb-4 mx-auto max-w-md">
+              <li>• The meeting was just created</li>
+              <li>• No action items have been assigned yet</li>
+              <li>• The server is still processing dashboard data</li>
+            </ul>
+            <Link to={`/meetings/${id}`}>
+              <Button variant="outline">Go to Meeting Details</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
       
       <Card>
         <CardHeader>
@@ -489,10 +529,12 @@ const MeetingDashboard = () => {
             
             {isHost && (
               <div className="flex justify-center mt-4">
-                <Button>
-                  <CheckSquare className="mr-2 h-4 w-4" />
-                  Manage Tasks
-                </Button>
+                <Link to={`/meetings/${id}/manage-action-items`}>
+                  <Button>
+                    <CheckSquare className="mr-2 h-4 w-4" />
+                    Manage Tasks
+                  </Button>
+                </Link>
               </div>
             )}
           </div>

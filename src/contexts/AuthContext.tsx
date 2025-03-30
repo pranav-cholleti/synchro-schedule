@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           // Set default Authorization header for all future requests
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          // Fix: Use the function call to get apiUrl
           axios.defaults.baseURL = getBackendConfig.apiUrl;
         } catch (error) {
           console.error('Failed to parse user data', error);

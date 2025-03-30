@@ -78,7 +78,6 @@ const usersApi = {
       return [];
     }
   },
-  // Add getById method that was missing
   getById: async (id) => {
     try {
       const response = await axiosInstance.get(`/users/${id}`);
@@ -110,7 +109,6 @@ const meetingsApi = {
       return null;
     }
   },
-  // Add getActionItems method that was missing
   getActionItems: async (meetingId) => {
     try {
       const response = await axiosInstance.get(`/meetings/${meetingId}/action-items`);
@@ -120,7 +118,6 @@ const meetingsApi = {
       return [];
     }
   },
-  // Add getMeetingStats method that was missing
   getMeetingStats: async (meetingId) => {
     try {
       const response = await axiosInstance.get(`/meetings/${meetingId}/dashboard`);
@@ -266,7 +263,6 @@ const actionItemsApi = {
       return [];
     }
   },
-  // Add getByMeeting method that was missing
   getByMeeting: async (meetingId) => {
     try {
       const response = await axiosInstance.get(`/meetings/${meetingId}/action-items`);
@@ -303,7 +299,6 @@ const actionItemsApi = {
       throw error;
     }
   },
-  // Add batchUpdate method that was missing
   batchUpdate: async (meetingId, tasks) => {
     try {
       const response = await axiosInstance.put(`/meetings/${meetingId}/action-items`, { actionItems: tasks });
@@ -315,7 +310,7 @@ const actionItemsApi = {
   }
 };
 
-// Add AI API service
+// AI API service
 const aiApi = {
   extractActionItems: async (text) => {
     try {

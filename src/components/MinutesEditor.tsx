@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, Save, Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { fileService } from '@/services/fileService';
+import { api } from '@/services/api';
 
 interface MinutesEditorProps {
   meetingId: string;
@@ -17,9 +17,9 @@ interface MinutesEditorProps {
   uploadedMinutesFilename?: string;
   isHost: boolean;
   onSaveMinutes: (text: string) => Promise<void>;
-  onUploadMinutes: (file: File) => Promise<void>;
-  onExtractActionItems: () => Promise<void>;
-  onGeneratePdf: () => Promise<void>;
+  onUploadMinutes?: (file: File) => Promise<void>;
+  onExtractActionItems?: () => Promise<void>;
+  onGeneratePdf?: () => Promise<void>;
 }
 
 const MinutesEditor: React.FC<MinutesEditorProps> = ({
@@ -40,6 +40,7 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [isExtractingActions, setIsExtractingActions] = useState<boolean>(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -59,11 +60,18 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
     
     try {
       setIsUploading(true);
-      await onUploadMinutes(file);
+      // Use the API directly if onUploadMinutes is not provided
+      if (onUploadMinutes) {
+        await onUploadMinutes(file);
+      } else {
+        await api.meetings.uploadMinutes(meetingId, file);
+      }
       toast({
         title: "File uploaded successfully",
         description: "Your minutes file is being processed.",
       });
+      // Refresh the meeting data after upload
+      window.location.reload();
     } catch (error) {
       console.error('Error uploading file:', error);
       toast({
@@ -97,6 +105,42 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
     }
   };
 
+  const handleExtractActionItems = async () => {
+    if (!editedFormattedText.trim()) {
+      toast({
+        title: "No content to analyze",
+        description: "Please add meeting minutes first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setIsExtractingActions(true);
+      // Use the API directly if onExtractActionItems is not provided
+      if (onExtractActionItems) {
+        await onExtractActionItems();
+      } else {
+        await api.meetings.extractActionItems(meetingId);
+        toast({
+          title: "Action items extracted",
+          description: "AI has processed your meeting minutes and extracted potential action items.",
+        });
+        // Navigate to action items page
+        window.location.href = `/meetings/${meetingId}/manage-action-items`;
+      }
+    } catch (error) {
+      console.error('Error extracting action items:', error);
+      toast({
+        title: "Error extracting action items",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExtractingActions(false);
+    }
+  };
+
   const handleGeneratePdf = async () => {
     if (!formattedText && !editedFormattedText) {
       toast({
@@ -109,7 +153,12 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
     
     try {
       setIsGeneratingPdf(true);
-      await onGeneratePdf();
+      // Use the API directly if onGeneratePdf is not provided
+      if (onGeneratePdf) {
+        await onGeneratePdf();
+      } else {
+        await api.meetings.generateMeetingPDF(meetingId);
+      }
       toast({
         title: "PDF generation started",
         description: "Your PDF is being generated and will be available soon.",
@@ -145,10 +194,10 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={onExtractActionItems}
-                disabled={!editedFormattedText}
+                onClick={handleExtractActionItems}
+                disabled={isExtractingActions || !editedFormattedText}
               >
-                <FileText className="h-4 w-4 mr-2" />
+                {isExtractingActions ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
                 Extract Actions
               </Button>
               <Button 

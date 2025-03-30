@@ -36,23 +36,21 @@ const MeetingDetail = () => {
         if (meetingData) {
           setMeeting(meetingData);
           
-          // Fetch attendees details
+          // Set attendees directly from the meeting data
           if (meetingData.attendees && meetingData.attendees.length > 0) {
-            const attendeesPromises = meetingData.attendees.map(
-              attendeeId => api.users.getById(attendeeId)
-            );
-            const attendeesData = await Promise.all(attendeesPromises);
-            setAttendees(attendeesData.filter(a => a !== null));
+            setAttendees(meetingData.attendees);
           }
           
           // Set minutes if available
-          if (meetingData.minutes) {
-            setMinutes(meetingData.minutes);
+          if (meetingData.formattedMinutesText) {
+            setMinutes(meetingData.formattedMinutesText);
           }
           
           // Fetch action items
           const actionItemsData = await api.meetings.getActionItems(id);
-          setActionItems(actionItemsData);
+          if (actionItemsData) {
+            setActionItems(actionItemsData);
+          }
         } else {
           toast({
             title: 'Error',
@@ -74,7 +72,7 @@ const MeetingDetail = () => {
     };
     
     fetchMeetingDetails();
-  }, [id]);
+  }, [id, navigate, toast]);
   
   const handleSaveMinutes = async (updatedMinutes) => {
     if (!id || !meeting) return;
@@ -82,7 +80,7 @@ const MeetingDetail = () => {
     setSavingMinutes(true);
     
     try {
-      await api.meetings.update(id, { ...meeting, minutes: updatedMinutes });
+      await api.meetings.updateMinutes(id, updatedMinutes);
       setMinutes(updatedMinutes);
       
       toast({
@@ -109,13 +107,13 @@ const MeetingDetail = () => {
       
       toast({
         title: 'Success',
-        description: 'PDF downloaded successfully',
+        description: 'PDF generated successfully',
       });
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error('Error generating PDF:', error);
       toast({
         title: 'Error',
-        description: 'Failed to download PDF',
+        description: 'Failed to generate PDF',
         variant: 'destructive',
       });
     }
@@ -145,6 +143,9 @@ const MeetingDetail = () => {
   const meetingDate = format(new Date(meeting.dateTime), 'EEEE, MMMM d, yyyy');
   const meetingTime = format(new Date(meeting.dateTime), 'h:mm a');
   const isPastMeeting = new Date(meeting.dateTime) < new Date();
+  
+  // Check if the current user is the host
+  const isHost = meeting.attendees?.some(a => a.userId === user?.id && a.role === 'host') || meeting.hostId === user?.id;
   
   return (
     <div className="space-y-6">
@@ -184,7 +185,7 @@ const MeetingDetail = () => {
                   <Globe className="w-4 h-4 mr-2" />
                   <span>{meeting.isOnline ? 'Online Meeting' : 'In-Person Meeting'}</span>
                 </p>
-                {meeting.isOnline && (
+                {meeting.isOnline && meeting.meetingLink && (
                   <p className="flex items-center">
                     <LinkIcon className="w-4 h-4 mr-2" />
                     <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
@@ -213,11 +214,10 @@ const MeetingDetail = () => {
           <MinutesEditor 
             meetingId={id || ''}
             formattedText={minutes}
-            isHost={meeting.hostId === user?.id}
+            isHost={isHost}
             onSaveMinutes={handleSaveMinutes}
-            onUploadMinutes={async () => {}}
-            onExtractActionItems={async () => {}}
-            onGeneratePdf={handleDownloadPDF}
+            uploadedMinutesFilename={meeting.uploadedMinutes?.originalFilename}
+            uploadedMinutesUrl={meeting.uploadedMinutes?.storagePath}
           />
         </TabsContent>
         
@@ -226,15 +226,23 @@ const MeetingDetail = () => {
           <ActionItemsList 
             actionItems={actionItems} 
             users={attendees}
-            isHost={meeting.hostId === user?.id}
+            isHost={isHost}
             onUpdateStatus={async () => {}}
           />
         </TabsContent>
         
         {/* Files Tab */}
         <TabsContent value="files" className="mt-4">
-          <div>
-            Files will be displayed here
+          <div className="text-center py-10 text-gray-500">
+            {meeting.uploadedMinutes ? (
+              <div className="flex flex-col items-center">
+                <FileText className="h-12 w-12 mb-4" />
+                <p className="font-medium">{meeting.uploadedMinutes.originalFilename}</p>
+                <p className="text-sm mb-4">Uploaded on {format(new Date(meeting.uploadedMinutes.uploadedAt), 'PPP')}</p>
+              </div>
+            ) : (
+              <p>No files have been uploaded yet.</p>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -242,7 +250,7 @@ const MeetingDetail = () => {
       {/* Meeting Actions */}
       <MeetingActions 
         meetingId={id || ''} 
-        isHost={meeting.hostId === user?.id}
+        isHost={isHost}
         hasActionItems={actionItems.length > 0}
       />
     </div>

@@ -60,16 +60,27 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
     
     try {
       setIsUploading(true);
-      // Use the API directly if onUploadMinutes is not provided
+      
+      // Use the provided onUploadMinutes function or fall back to direct API call
       if (onUploadMinutes) {
         await onUploadMinutes(file);
       } else {
-        await api.meetings.uploadMinutes(meetingId, file);
+        const response = await api.meetings.uploadMinutes(meetingId, file);
+        
+        // Check for 202 status to handle async processing response
+        if (response && response.success && response.statusCode === 202) {
+          toast({
+            title: "File uploaded",
+            description: response.message || "Processing started. This may take a moment.",
+          });
+        }
       }
+      
       toast({
         title: "File uploaded successfully",
         description: "Your minutes file is being processed.",
       });
+      
       // Refresh the meeting data after upload
       window.location.reload();
     } catch (error) {
@@ -117,17 +128,20 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
     
     try {
       setIsExtractingActions(true);
-      // Use the API directly if onExtractActionItems is not provided
+      
+      // Use the provided onExtractActionItems function or fall back to direct API call
       if (onExtractActionItems) {
         await onExtractActionItems();
       } else {
-        await api.meetings.extractActionItems(meetingId);
+        const actionItems = await api.meetings.extractActionItems(meetingId);
+        
         toast({
           title: "Action items extracted",
           description: "AI has processed your meeting minutes and extracted potential action items.",
         });
+        
         // Navigate to action items page
-        window.location.href = `/meetings/${meetingId}/manage-action-items`;
+        window.location.href = `/meetings/${meetingId}/action-items`;
       }
     } catch (error) {
       console.error('Error extracting action items:', error);
@@ -153,16 +167,20 @@ const MinutesEditor: React.FC<MinutesEditorProps> = ({
     
     try {
       setIsGeneratingPdf(true);
-      // Use the API directly if onGeneratePdf is not provided
+      
+      // Use the provided onGeneratePdf function or fall back to direct API call
       if (onGeneratePdf) {
         await onGeneratePdf();
       } else {
-        await api.meetings.generateMeetingPDF(meetingId);
+        const response = await api.meetings.generateMeetingPDF(meetingId);
+        
+        if (response && response.success && response.statusCode === 202) {
+          toast({
+            title: "PDF generation started",
+            description: "Your PDF is being generated and will be available soon.",
+          });
+        }
       }
-      toast({
-        title: "PDF generation started",
-        description: "Your PDF is being generated and will be available soon.",
-      });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({

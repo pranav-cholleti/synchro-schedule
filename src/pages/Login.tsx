@@ -31,12 +31,19 @@ const Login = () => {
     try {
       const response = await api.auth.login(formData);
       
+      // Check if response is successful
       if (response.success) {
         // Store token in localStorage for authentication
         localStorage.setItem('token', response.data.token);
         
-        // Log in the user
-        login(response.data.user);
+        // Create AuthUser object from response
+        const userData = {
+          ...response.data.user,
+          token: response.data.token
+        };
+        
+        // Log in the user with the created AuthUser object
+        login(userData);
         
         toast({
           title: 'Success',

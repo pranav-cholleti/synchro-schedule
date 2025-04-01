@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import getBackendConfig from '@/config/backend';
 
@@ -304,6 +305,15 @@ const actionItemsApi = {
       return response.data;
     } catch (error) {
       console.error(`Error batch updating tasks for meeting ${meetingId}:`, error);
+      throw error;
+    }
+  },
+  updateProgress: async (id, progress) => {
+    try {
+      const response = await axiosInstance.put(`/tasks/${id}`, { progress });
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error updating progress for task ${id}:`, error);
       throw error;
     }
   }

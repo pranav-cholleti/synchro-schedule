@@ -1,9 +1,10 @@
+
 export type User = {
   id: string;
   name: string;
-  age: number;
+  age?: number;
   organisation: string;
-  position: string;
+  position?: string;
   email: string;
   mobile?: string;
   createdAt: string;
@@ -39,6 +40,7 @@ export type Meeting = {
     uploadedAt: string;
   };
   aiSummary?: string;
+  userRole?: 'host' | 'attendee'; // User's role in this meeting
 };
 
 export type MeetingFormData = {
@@ -63,6 +65,10 @@ export type ActionItem = {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  meeting?: {
+    meetingId: string;
+    name: string;
+  };
 };
 
 // Backend configuration types
@@ -139,4 +145,23 @@ export type ProgressAnalysisResponse = {
   riskItems: string[];
   success: boolean;
   error?: string;
+};
+
+// API response types to match backend specification
+export type ApiResponse<T> = {
+  success: boolean;
+  statusCode: number;
+  data: T;
+  message: string;
+};
+
+export type LoginResponse = {
+  user: {
+    userId: string;
+    name: string;
+    email: string;
+    organisation: string;
+    [key: string]: any;
+  };
+  token: string;
 };

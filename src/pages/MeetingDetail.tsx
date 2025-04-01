@@ -48,9 +48,14 @@ const MeetingDetail = () => {
           
           try {
             // Fetch action items
-            const actionItemsData = await api.actionItems.getByMeeting(id);
-            if (actionItemsData) {
-              setActionItems(actionItemsData);
+            if (api.actionItems.getByMeeting) {
+              const actionItemsData = await api.actionItems.getByMeeting(id);
+              if (actionItemsData) {
+                setActionItems(actionItemsData);
+              }
+            } else {
+              console.warn('getByMeeting method not available in actionItems API');
+              setActionItems([]);
             }
           } catch (error) {
             console.error('Error fetching action items:', error);
@@ -152,9 +157,14 @@ const MeetingDetail = () => {
   
   // Check if the current user is the host
   const attendeesArray = meeting.attendees || [];
-  const isHost = attendeesArray.some(a => 
-    (a.userId === user?.id || a.userId === user?.userId) && a.role === 'host'
-  ) || meeting.hostId === user?.id || meeting.userRole === 'host';
+  const isHost = user && attendeesArray.some(a => {
+    // First check by ID if available
+    if (a.userId && user.id) {
+      return a.userId === user.id && a.role === 'host';
+    }
+    // Fallback check by email
+    return a.email === user.email && a.role === 'host';
+  }) || meeting.hostId === user?.id;
   
   return (
     <div className="space-y-6">

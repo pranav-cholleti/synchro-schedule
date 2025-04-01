@@ -1,6 +1,6 @@
-
 import axios from 'axios';
 import getBackendConfig from '@/config/backend';
+import { ApiResponse } from '@/types';
 
 // Configure axios with base URL and interceptors
 const baseURL = getBackendConfig.apiUrl;
@@ -78,6 +78,7 @@ const usersApi = {
       return [];
     }
   },
+  // This method is unnecessary based on the API spec but keeping for backward compatibility
   getById: async (id) => {
     try {
       const response = await axiosInstance.get(`/users/${id}`);
@@ -94,10 +95,10 @@ const meetingsApi = {
   getAll: async (params = {}) => {
     try {
       const response = await axiosInstance.get('/meetings', { params });
-      return response.data.data.meetings;
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching meetings:', error);
-      return [];
+      return { meetings: [], totalPages: 0, currentPage: 1, totalMeetings: 0 };
     }
   },
   getById: async (id) => {
@@ -248,19 +249,19 @@ const actionItemsApi = {
   getAssignedToUser: async (params = {}) => {
     try {
       const response = await axiosInstance.get('/tasks/assigned', { params });
-      return response.data.data.tasks;
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching assigned tasks:', error);
-      return [];
+      return { tasks: [], totalPages: 0, currentPage: 1, totalTasks: 0 };
     }
   },
   getScheduledByUser: async (params = {}) => {
     try {
       const response = await axiosInstance.get('/tasks/scheduled', { params });
-      return response.data.data.tasks;
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching scheduled tasks:', error);
-      return [];
+      return { tasks: [], totalPages: 0, currentPage: 1, totalTasks: 0 };
     }
   },
   getByMeeting: async (meetingId) => {

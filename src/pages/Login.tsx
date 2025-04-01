@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AuthUser } from '@/types';
 
 const Login = () => {
   const { login } = useAuth();
@@ -37,8 +38,12 @@ const Login = () => {
         localStorage.setItem('token', response.data.token);
         
         // Create AuthUser object from response
-        const userData = {
-          ...response.data.user,
+        // The backend returns { user: { userId, name, email, organisation }, token }
+        const userData: AuthUser = {
+          id: response.data.user.userId,
+          name: response.data.user.name,
+          email: response.data.user.email,
+          organisation: response.data.user.organisation,
           token: response.data.token
         };
         

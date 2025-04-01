@@ -7,11 +7,20 @@ export type User = {
   position?: string;
   email: string;
   mobile?: string;
-  createdAt: string;
+  createdAt?: string;
 };
 
-export type AuthUser = User & {
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  organisation: string;
   token: string;
+  // Optional fields
+  age?: number;
+  position?: string;
+  mobile?: string;
+  createdAt?: string;
 };
 
 export type Meeting = {
@@ -69,6 +78,25 @@ export type ActionItem = {
     meetingId: string;
     name: string;
   };
+};
+
+// API response types to match backend specification
+export type ApiResponse<T> = {
+  success: boolean;
+  statusCode: number;
+  data: T;
+  message: string;
+};
+
+export type LoginResponse = {
+  user: {
+    userId: string;
+    name: string;
+    email: string;
+    organisation: string;
+    [key: string]: any;
+  };
+  token: string;
 };
 
 // Backend configuration types
@@ -145,23 +173,4 @@ export type ProgressAnalysisResponse = {
   riskItems: string[];
   success: boolean;
   error?: string;
-};
-
-// API response types to match backend specification
-export type ApiResponse<T> = {
-  success: boolean;
-  statusCode: number;
-  data: T;
-  message: string;
-};
-
-export type LoginResponse = {
-  user: {
-    userId: string;
-    name: string;
-    email: string;
-    organisation: string;
-    [key: string]: any;
-  };
-  token: string;
 };

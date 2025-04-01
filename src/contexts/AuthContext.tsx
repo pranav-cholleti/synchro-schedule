@@ -6,7 +6,7 @@ import getBackendConfig from '@/config/backend';
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (user: AuthUser) => void;
+  login: (userData: AuthUser) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -62,6 +62,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     // Note: token is stored separately in the Login component
+    
+    // Set auth header for future requests
+    if (userData.token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${userData.token}`;
+    }
   };
 
   const logout = () => {

@@ -78,7 +78,6 @@ const usersApi = {
       return [];
     }
   },
-  // This method is unnecessary based on the API spec but keeping for backward compatibility
   getById: async (id) => {
     try {
       const response = await axiosInstance.get(`/users/${id}`);
@@ -248,7 +247,9 @@ const meetingsApi = {
 const actionItemsApi = {
   getAssignedToUser: async (params = {}) => {
     try {
-      const response = await axiosInstance.get('/tasks/assigned', { params });
+      const response = await axiosInstance.get('/tasks/assigned', { 
+        params: typeof params === 'object' ? params : {} 
+      });
       return response.data.data;
     } catch (error) {
       console.error('Error fetching assigned tasks:', error);
@@ -257,7 +258,9 @@ const actionItemsApi = {
   },
   getScheduledByUser: async (params = {}) => {
     try {
-      const response = await axiosInstance.get('/tasks/scheduled', { params });
+      const response = await axiosInstance.get('/tasks/scheduled', { 
+        params: typeof params === 'object' ? params : {} 
+      });
       return response.data.data;
     } catch (error) {
       console.error('Error fetching scheduled tasks:', error);

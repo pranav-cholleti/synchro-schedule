@@ -34,16 +34,18 @@ const Meetings = () => {
       
       try {
         const response = await api.meetings.getAll();
-        if (Array.isArray(response)) {
-          // Make sure each meeting has an attendees property, defaulting to empty array if undefined
-          const meetingsWithAttendees = response.map(meeting => ({
+        if (response && response.meetings) {
+          // Process the meetings array from the response
+          const meetingsWithAttendees = response.meetings.map(meeting => ({
             ...meeting,
+            id: meeting.meetingId, // Map meetingId to id for consistency
             attendees: meeting.attendees || []
           }));
           setMeetings(meetingsWithAttendees);
           console.log('Meetings fetched:', meetingsWithAttendees);
         } else {
           console.error('Unexpected API response structure:', response);
+          setMeetings([]);
         }
       } catch (error) {
         console.error('Error fetching meetings:', error);
@@ -52,6 +54,7 @@ const Meetings = () => {
           description: 'Failed to load meetings',
           variant: 'destructive',
         });
+        setMeetings([]);
       } finally {
         setLoading(false);
       }

@@ -134,15 +134,29 @@ const Tasks = () => {
       if (!user) return;
       
       try {
-        // For demo purposes, we're just using the assigned tasks for both tabs
-        // In a real app, you would fetch both separately
-        const fetchedTasks = await api.actionItems.getAssignedToUser(user.id);
-        setAssignedTasks(fetchedTasks);
+        // Get tasks assigned to the current user
+        const assignedResponse = await api.actionItems.getAssignedToUser();
         
-        // Simulate scheduled tasks (would be different API call in real app)
-        setScheduledTasks(fetchedTasks.slice().reverse());
+        if (assignedResponse && assignedResponse.tasks) {
+          setAssignedTasks(assignedResponse.tasks);
+        } else {
+          console.log('No assigned tasks found or unexpected response structure');
+          setAssignedTasks([]);
+        }
+        
+        // Get tasks scheduled by the current user
+        const scheduledResponse = await api.actionItems.getScheduledByUser();
+        
+        if (scheduledResponse && scheduledResponse.tasks) {
+          setScheduledTasks(scheduledResponse.tasks);
+        } else {
+          console.log('No scheduled tasks found or unexpected response structure');
+          setScheduledTasks([]);
+        }
       } catch (error) {
         console.error('Error fetching tasks:', error);
+        setAssignedTasks([]);
+        setScheduledTasks([]);
       } finally {
         setLoading(false);
       }

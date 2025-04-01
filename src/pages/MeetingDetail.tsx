@@ -46,10 +46,16 @@ const MeetingDetail = () => {
             setMinutes(meetingData.formattedMinutesText);
           }
           
-          // Fetch action items
-          const actionItemsData = await api.meetings.getActionItems(id);
-          if (actionItemsData) {
-            setActionItems(actionItemsData);
+          try {
+            // Fetch action items
+            const actionItemsData = await api.actionItems.getByMeeting(id);
+            if (actionItemsData) {
+              setActionItems(actionItemsData);
+            }
+          } catch (error) {
+            console.error('Error fetching action items:', error);
+            // Don't show an error toast for action items specifically
+            setActionItems([]);
           }
         } else {
           toast({
@@ -145,7 +151,10 @@ const MeetingDetail = () => {
   const isPastMeeting = new Date(meeting.dateTime) < new Date();
   
   // Check if the current user is the host
-  const isHost = meeting.attendees?.some(a => a.userId === user?.id && a.role === 'host') || meeting.hostId === user?.id;
+  const attendeesArray = meeting.attendees || [];
+  const isHost = attendeesArray.some(a => 
+    (a.userId === user?.id || a.userId === user?.userId) && a.role === 'host'
+  ) || meeting.hostId === user?.id || meeting.userRole === 'host';
   
   return (
     <div className="space-y-6">
@@ -195,7 +204,7 @@ const MeetingDetail = () => {
                 )}
                 <p className="flex items-center">
                   <Users className="w-4 h-4 mr-2" />
-                  <span>Attendees: {attendees.map(attendee => attendee?.name).join(', ')}</span>
+                  <span>Attendees: {attendeesArray.map(attendee => attendee?.name).join(', ')}</span>
                 </p>
               </div>
             </div>

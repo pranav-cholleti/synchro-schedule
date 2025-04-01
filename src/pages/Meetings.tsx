@@ -35,8 +35,13 @@ const Meetings = () => {
       try {
         const response = await api.meetings.getAll();
         if (Array.isArray(response)) {
-          setMeetings(response);
-          console.log('Meetings fetched:', response);
+          // Make sure each meeting has an attendees property, defaulting to empty array if undefined
+          const meetingsWithAttendees = response.map(meeting => ({
+            ...meeting,
+            attendees: meeting.attendees || []
+          }));
+          setMeetings(meetingsWithAttendees);
+          console.log('Meetings fetched:', meetingsWithAttendees);
         } else {
           console.error('Unexpected API response structure:', response);
         }
@@ -106,13 +111,13 @@ const Meetings = () => {
       
       toast({
         title: 'Success',
-        description: 'PDF downloaded successfully',
+        description: 'PDF generated successfully',
       });
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error('Error generating PDF:', error);
       toast({
         title: 'Error',
-        description: 'Failed to download PDF',
+        description: 'Failed to generate PDF',
         variant: 'destructive',
       });
     }
@@ -132,13 +137,18 @@ const Meetings = () => {
   
   // Render a meeting card
   const renderMeetingCard = (meeting: Meeting) => {
-    const isHost = meeting.attendees.some(a => a.userId === user?.id && a.role === 'host');
+    // Ensure attendees exists and defaulting to an empty array if it doesn't
+    const attendees = meeting.attendees || [];
+    // Check if the current user is a host
+    const isHost = attendees.some(a => (a.userId === user?.id || a.userId === user?.userId) && a.role === 'host') || 
+                   meeting.hostId === user?.id || 
+                   meeting.userRole === 'host';
     
     return (
-      <Card key={meeting.id} className="overflow-hidden">
+      <Card key={meeting.id || meeting.meetingId} className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
-            <Link to={`/meetings/${meeting.id}`} className="hover:underline">
+            <Link to={`/meetings/${meeting.id || meeting.meetingId}`} className="hover:underline">
               <CardTitle className="text-xl hover:text-synchro-600 transition-colors">
                 {meeting.name}
               </CardTitle>
@@ -155,7 +165,7 @@ const Meetings = () => {
                   <ul className="py-1">
                     <li>
                       <Link 
-                        to={`/meetings/${meeting.id}/edit`}
+                        to={`/meetings/${meeting.id || meeting.meetingId}/edit`}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         <Edit className="h-4 w-4 mr-2" />
@@ -175,7 +185,7 @@ const Meetings = () => {
                     {new Date(meeting.dateTime) < new Date() && (
                       <li>
                         <button 
-                          onClick={() => handleDownloadPDF(meeting.id)}
+                          onClick={() => handleDownloadPDF(meeting.id || meeting.meetingId)}
                           className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
                           <Download className="h-4 w-4 mr-2" />
@@ -210,7 +220,7 @@ const Meetings = () => {
             
             <div className="flex items-center text-gray-600 dark:text-gray-400">
               <Users className="h-4 w-4 mr-2" />
-              <span>{meeting.attendees.length} attendees</span>
+              <span>{attendees.length} attendees</span>
             </div>
           </div>
         </CardContent>
@@ -219,7 +229,7 @@ const Meetings = () => {
           <Button 
             variant="outline" 
             className="w-full"
-            onClick={() => navigate(`/meetings/${meeting.id}`)}
+            onClick={() => navigate(`/meetings/${meeting.id || meeting.meetingId}`)}
           >
             View Details
           </Button>

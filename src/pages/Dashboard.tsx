@@ -115,7 +115,7 @@ const Dashboard = () => {
                 {upcomingMeetings.map((meeting) => {
                   const meetingDate = new Date(meeting.dateTime);
                   return (
-                    <li key={meeting.id} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                    <li key={meeting.id || meeting.meetingId} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
                       <Clock className="h-5 w-5 text-synchro-600 mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 dark:text-white truncate">{meeting.name}</p>
@@ -153,11 +153,11 @@ const Dashboard = () => {
             ) : pendingTasks.length > 0 ? (
               <ul className="space-y-3">
                 {pendingTasks.map((task) => {
-                  const deadline = new Date(task.deadline);
-                  const isUrgent = deadline.getTime() - new Date().getTime() < 86400000; // Less than 24 hours
+                  const deadline = task.deadline ? new Date(task.deadline) : null;
+                  const isUrgent = deadline ? deadline.getTime() - new Date().getTime() < 86400000 : false; // Less than 24 hours
                   
                   return (
-                    <li key={task.id} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                    <li key={task.id || task._id} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
                       {isUrgent ? (
                         <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
                       ) : (
@@ -175,10 +175,14 @@ const Dashboard = () => {
                           }`}>
                             Priority {task.priority}
                           </span>
-                          <span className="mx-1 text-gray-500">•</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            Due {deadline.toLocaleDateString()}
-                          </span>
+                          {deadline && (
+                            <>
+                              <span className="mx-1 text-gray-500">•</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                Due {deadline.toLocaleDateString()}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </li>
